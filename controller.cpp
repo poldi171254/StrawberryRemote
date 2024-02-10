@@ -20,6 +20,7 @@ void Controller::Init(QString ipAddr, qint16 port)
     hostAddr_.setAddress(ipAddr_);
     //server_ = new QTcpServer;
     socket_->connectToHost(hostAddr_,port_);
+    socket_->waitForConnected();
     statusWindow_ = new ConnectionStatus();
     if(socket_->isOpen()){
         statusWindow_->DisplayText("Connected to Server");
@@ -58,7 +59,7 @@ void Controller::Error(QAbstractSocket::SocketError socketError)
 {
     switch (socketError) {
     case QAbstractSocket::RemoteHostClosedError:
-        qDebug() << "Controller error";
+        qDebug() << "Remote Host closed";
         break;
     case QAbstractSocket::HostNotFoundError:
         qDebug() << "The host was not found. Please check the host name and port settings.";
