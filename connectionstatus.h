@@ -14,14 +14,19 @@ class ConnectionStatus : public QWidget
 public:
     explicit ConnectionStatus(QWidget *parent = nullptr);
     ~ConnectionStatus();
+    bool statusOk();
+
+public slots:
     void DisplayText(QString);
-    void Finish();
 
 signals:
     void statusChanged(QString status);
+    void Continue();
+    void Cancel();
 
 private:
     Ui::ConnectionStatus *ui_;
+    bool statusOk_ = false;
 };
 
 #endif // CONNECTIONSTATUS_H

@@ -7,6 +7,8 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QDebug>
+#include "connection.h"
+#include "player.h"
 
 
 #include "connectionstatus.h"
@@ -17,23 +19,26 @@ class Controller : public QObject
 public:
     explicit Controller(QObject *parent = nullptr);
     ~Controller();
-    void Init(QString, qint16);
+    void Init(QString, int);
     QString GetIpAddress();
+    void Cancel();
+    void Continue();
+    void DoWork();
 
 signals:
     void Finish();
 
 private slots:
     void Ready();
-    void Error(QAbstractSocket::SocketError);
+    void ConnectionError();
 
 private:
     ConnectionStatus *statusWindow_;
-    QString ipAddr_ = "0.0.0.0";
-    qint16 port_;
-    QHostAddress hostAddr_;
-    //QTcpServer *server_;
-    QTcpSocket *socket_;
+    QString ipAddr_;
+    int port_;
+    Connection *connection_;
+    Player *player_;
+    bool statusOk_ = false;
 
 
 };

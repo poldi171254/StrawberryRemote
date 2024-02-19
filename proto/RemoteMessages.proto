@@ -8,37 +8,28 @@ enum MsgType {
     // Client messages
     CONNECT = 1;
     DISCONNECT = 2;
-    NEXT = 3;
-    PREVIOUS = 4;
-    PAUSE = 5;
-    STOP = 6;
+    PLAY = 3;
+    NEXT = 4;
+    PREVIOUS = 5;
+    PAUSE = 6;
+    STOP = 7;
 
-    // Server messages
-    INFO = 7;
+}
+
+message RequestConnect {
+    bool send_current_song = 1;
+}
+
+enum ReasonDisconnect {
+    Server_Shutdown = 0;
+    Client_Shutdown = 1;
+}
+
+message RequestDisconnect {
+    ReasonDisconnect reason_disconnect = 1;
 }
 
 message SongMetadata{
-    enum Type {
-        UNKNOWN = 0;
-        ASF = 1;
-        FLAC = 2;
-        MP4 = 3;
-        MPC = 4;
-        MPEG = 5;
-        OGGFLAC = 6;
-        OGGSPEEX = 7;
-        OGGVORBIS = 8;
-        AIFF = 9;
-        WAV = 10;
-        TRUEAUDIO = 11;
-        CDDA = 12;
-        OGGOPUS = 13;
-        WAVPACK = 14;
-        SPC = 15;
-        VGM = 16;
-        APE = 17;
-        STREAM = 99;
-}
     int32 id = 1;
     string title = 2;
     string album = 3;
@@ -66,12 +57,28 @@ message RequestPreviousTrack {
     bool previous = 1;
 }
 
+message RequestPlay {
+    bool play = 1;
+}
+
+message RequestPause {
+    bool pause = 1;
+}
+
+message RequestStop {
+    bool stop = 1;
+}
 message Message {
     int32 version = 1;
     MsgType type = 2;
-    RequestSongMetadata request_song_Metadata = 3;
+    RequestSongMetadata request_song_metadata = 3;
     ResponseSongMetadata response_song_metadata = 4;
     RequestNextTrack request_next_track = 5;
     RequestPreviousTrack request_previous_track = 6;
+    RequestPlay request_play = 7;
+    RequestPause request_pause = 8;
+    RequestStop request_stop = 9;
+    RequestConnect request_connect = 10;
+    RequestDisconnect request_disconnect = 11;
 }
 

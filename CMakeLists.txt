@@ -36,8 +36,14 @@ add_executable(StrawberryRemote
         outgoingmsg.cpp
         incomingmsg.h
         incomingmsg.cpp
+        connection.h
+        connection.cpp
+        player.h
+        player.cpp
+        player.ui
 )
 
+target_include_directories(RemoteMessages PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 target_link_libraries(StrawberryRemote
     Qt${QT_VERSION_MAJOR}::Widgets

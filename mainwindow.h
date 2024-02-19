@@ -28,6 +28,6 @@ private:
     ConnectionStatus *statusWindow_;
     Controller *controller_;
     QString ipAddress_;
-    qint16 port_;
+    int port_;
 };
 #endif // MAINWINDOW_H

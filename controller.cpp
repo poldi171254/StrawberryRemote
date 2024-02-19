@@ -2,10 +2,10 @@
 
 Controller::Controller(QObject *parent)
     : QObject{parent},
-      socket_(new QTcpSocket(this))
+      connection_(new Connection(this))
 {
-    QObject::connect(socket_, &QIODevice::readyRead, this,&Controller::Ready);
-    QObject::connect(socket_, &QAbstractSocket::errorOccurred, this,&Controller::Error);
+    QObject::connect(connection_, &Connection::ConnectionError, this, &Controller::ConnectionError);
+
 }
 
 Controller::~Controller()
@@ -13,24 +13,22 @@ Controller::~Controller()
     statusWindow_->~ConnectionStatus();
 }
 
-void Controller::Init(QString ipAddr, qint16 port)
+void Controller::Init(QString ipAddr, int port)
 {
     ipAddr_ = ipAddr;
     port_ = port;
-    hostAddr_.setAddress(ipAddr_);
-    //server_ = new QTcpServer;
-    socket_->connectToHost(hostAddr_,port_);
-    socket_->waitForConnected();
-    statusWindow_ = new ConnectionStatus();
-    if(socket_->isOpen()){
-        statusWindow_->DisplayText("Connected to Server");
-    }
-    else {
-        statusWindow_->DisplayText("Problem Connecting to Server");
-    }
+    connection_->Init(ipAddr_, port_);
 
+    statusWindow_ = new ConnectionStatus();
+    QObject::connect(statusWindow_,&ConnectionStatus::Continue, this, &Controller::Continue);
+    QObject::connect(statusWindow_,&ConnectionStatus::Cancel, this, &Controller::Cancel);
+
+    statusWindow_->activateWindow();
+    statusWindow_->DisplayText("Connected to Server at " + ipAddr_ + " Port " + QString::number(port_));
     statusWindow_->show();
+
 }
+
 
 QString Controller::GetIpAddress()
 {
@@ -50,24 +48,35 @@ QString Controller::GetIpAddress()
     return ipAddr_;
 }
 
+void Controller::Cancel()
+{
+    qInfo("Contoller = false");
+}
+
+void Controller::Continue()
+{
+    qInfo("Contoller = true");
+    DoWork();
+}
+
+void Controller::DoWork()
+{
+
+    player_ = new Player;
+    player_->activateWindow();
+    player_->show();
+
+    connection_->Connect();
+
+}
+
 void Controller::Ready()
 {
     qDebug() << "Controller ready";
 }
 
-void Controller::Error(QAbstractSocket::SocketError socketError)
+void Controller::ConnectionError()
 {
-    switch (socketError) {
-    case QAbstractSocket::RemoteHostClosedError:
-        qDebug() << "Remote Host closed";
-        break;
-    case QAbstractSocket::HostNotFoundError:
-        qDebug() << "The host was not found. Please check the host name and port settings.";
-        break;
-    case QAbstractSocket::ConnectionRefusedError:
-        qDebug() << "The connection was refused by the peer. ";
-        break;
-    default:
-        qDebug() << "The following error occurred: %1." << socket_->errorString();
-    }
+
 }
+

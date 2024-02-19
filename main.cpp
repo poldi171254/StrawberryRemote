@@ -5,7 +5,7 @@
 int main(int argc, char *argv[])
 {
     QString ipAddr_;
-    qint16 port_;
+    int port_;
     QApplication a(argc, argv);
     MainWindow w;
     w.Init();
