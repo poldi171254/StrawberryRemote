@@ -26,7 +26,6 @@ void Controller::Init(QString ipAddr, int port)
     statusWindow_->activateWindow();
     statusWindow_->DisplayText("Connected to Server at " + ipAddr_ + " Port " + QString::number(port_));
     statusWindow_->show();
-
 }
 
 
@@ -50,24 +49,31 @@ QString Controller::GetIpAddress()
 
 void Controller::Cancel()
 {
-    qInfo("Contoller = false");
+    qInfo("Controller Cancel ");
+    statusWindow_->close();
 }
 
 void Controller::Continue()
 {
-    qInfo("Contoller = true");
+    qInfo("Controller Continue");
     DoWork();
 }
 
 void Controller::DoWork()
 {
-
     player_ = new Player;
     player_->activateWindow();
     player_->show();
 
     connection_->Connect();
 
+}
+
+void Controller::DisplayError(QString error)
+{
+    errorWindow_ = new MessageWindow();
+    errorWindow_->activateWindow();
+    errorWindow_->show();
 }
 
 void Controller::Ready()
@@ -77,6 +83,7 @@ void Controller::Ready()
 
 void Controller::ConnectionError()
 {
-
+    qInfo("Controller ConnectionError");
+    Cancel();
 }
 

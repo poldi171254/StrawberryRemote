@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QTcpSocket>
 #include <QHostAddress>
-#include "spb/remote/RemoteMessages.qpb.h"
+#include "outgoingmsg.h"
 
 class Connection : public QObject
 {
@@ -15,7 +15,7 @@ public:
 
 public slots:
     void Init(QString, int);
-    void Connect();
+    bool Connect();
 
 private slots:
 
@@ -29,7 +29,8 @@ private:
     int port_;
     QTcpSocket *socket_;
     QHostAddress hostAddr_;
-    spb::remote::Message *msg_;
+    OutgoingMsg *msgOut_;
+    bool statusOk = false;
 
 };
 

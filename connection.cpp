@@ -14,11 +14,12 @@ Connection::~Connection()
 
 void Connection::Init(QString ipAddr, int port)
 {
+
     ipAddr_ = ipAddr;
     port_ = port;
     hostAddr_.setAddress(ipAddr_);
     socket_->connectToHost(hostAddr_,port_);
-    if (socket_->waitForConnected(1000)){
+    if (socket_->waitForConnected()){
         qDebug() << "Socket connected";
     }
     else {
@@ -27,14 +28,13 @@ void Connection::Init(QString ipAddr, int port)
 
 }
 
-void Connection::Connect()
+bool Connection::Connect()
 {
-    msg_ = new (spb::remote::Message);
-    msg_->setType(spb::remote::MsgTypeGadget::CONNECT);
-    spb::remote::RequestConnect* connect_ = new spb::remote::RequestConnect;
-    connect_->setSendCurrentSong(true);
-    msg_->setRequestConnect(*connect_);
+    msgOut_ = new OutgoingMsg;
+    msgOut_->Start(socket_);
+
     qDebug() << "Sending Connect request";
+    return statusOk;
 }
 
 void Connection::Error(QAbstractSocket::SocketError socketError)

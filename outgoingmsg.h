@@ -2,8 +2,11 @@
 #define OUTGOINGMSG_H
 
 #include <QObject>
+#include <QByteArray>
+#include <QTcpSocket>
+#include <QDebug>
+#include "proto/RemoteMessages.pb.h"
 
-#include "spb/remote/RemoteMessages.qpb.h"
 
 class OutgoingMsg : public QObject
 {
@@ -11,13 +14,17 @@ class OutgoingMsg : public QObject
 public:
     explicit OutgoingMsg(QObject *parent = nullptr);
     ~OutgoingMsg();
-    void Start();
-    void Send();
+    bool Start(QTcpSocket*);
 
 signals:
 
 private:
-    spb::remote::Message *message_;
+    void Send();
+    QTcpSocket *socket_;
+    bool statusOk_ = false;
+    nw::remote::Message *msg_;
+
+    long bytesOut_;
 };
 
 #endif // OUTGOINGMSG_H

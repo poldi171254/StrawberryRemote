@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-#include "spb/remote/RemoteMessages.qpb.h"
+// #include "proto/RemoteMessages.pb.h"
 
 class IncomingMsg : public QObject
 {
