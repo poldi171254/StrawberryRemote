@@ -17,8 +17,8 @@
    <widget class="QPushButton" name="connectButton">
     <property name="geometry">
      <rect>
-      <x>110</x>
-      <y>160</y>
+      <x>100</x>
+      <y>150</y>
       <width>151</width>
       <height>41</height>
      </rect>

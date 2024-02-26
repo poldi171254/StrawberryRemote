@@ -17,15 +17,18 @@ void Controller::Init(QString ipAddr, int port)
 {
     ipAddr_ = ipAddr;
     port_ = port;
-    connection_->Init(ipAddr_, port_);
+    statusOk_ = connection_->Init(ipAddr_, port_);
 
-    statusWindow_ = new ConnectionStatus();
-    QObject::connect(statusWindow_,&ConnectionStatus::Continue, this, &Controller::Continue);
-    QObject::connect(statusWindow_,&ConnectionStatus::Cancel, this, &Controller::Cancel);
+    if(statusOk_){
+        statusWindow_ = new ConnectionStatus();
+        QObject::connect(statusWindow_,&ConnectionStatus::Continue, this, &Controller::Continue);
+        QObject::connect(statusWindow_,&ConnectionStatus::Cancel, this, &Controller::Cancel);
 
-    statusWindow_->activateWindow();
-    statusWindow_->DisplayText("Connected to Server at " + ipAddr_ + " Port " + QString::number(port_));
-    statusWindow_->show();
+        statusWindow_->activateWindow();
+        statusWindow_->DisplayText("Connected to Server at " + ipAddr_ + " Port " + QString::number(port_));
+        statusWindow_->show();
+    }
+
 }
 
 
@@ -67,13 +70,6 @@ void Controller::DoWork()
 
     connection_->Connect();
 
-}
-
-void Controller::DisplayError(QString error)
-{
-    errorWindow_ = new MessageWindow();
-    errorWindow_->activateWindow();
-    errorWindow_->show();
 }
 
 void Controller::Ready()

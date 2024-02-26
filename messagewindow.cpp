@@ -14,12 +14,11 @@ MessageWindow::~MessageWindow()
     delete ui_;
 }
 
-void MessageWindow::Init(QString errorMsg)
+void MessageWindow::Init()
 {
-    ui_->messageText->setText(errorMsg);
 }
 
-void MessageWindow::Ok()
+void MessageWindow::DisplayText(QString message)
 {
-
+    ui_->messageText->setText(message);
 }

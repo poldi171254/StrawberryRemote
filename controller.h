@@ -9,7 +9,7 @@
 #include <QDebug>
 #include "connection.h"
 #include "player.h"
-#include "messagewindow.h"
+
 
 
 #include "connectionstatus.h"
@@ -25,7 +25,6 @@ public:
     void Cancel();
     void Continue();
     void DoWork();
-    void DisplayError(QString);
 
 signals:
     void Finish();
@@ -41,7 +40,7 @@ private:
     Connection *connection_;
     Player *player_;
     bool statusOk_ = false;
-    MessageWindow *errorWindow_;
+
 
 
 };

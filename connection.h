@@ -5,6 +5,7 @@
 #include <QTcpSocket>
 #include <QHostAddress>
 #include "outgoingmsg.h"
+#include "messagewindow.h"
 
 class Connection : public QObject
 {
@@ -12,10 +13,13 @@ class Connection : public QObject
 public:
     explicit Connection(QObject *parent = nullptr);
     ~Connection();
+    void DisplayError();
+
 
 public slots:
-    void Init(QString, int);
+    bool Init(QString, int);
     bool Connect();
+    void Close();
 
 private slots:
 
@@ -30,7 +34,9 @@ private:
     QTcpSocket *socket_;
     QHostAddress hostAddr_;
     OutgoingMsg *msgOut_;
-    bool statusOk = false;
+    MessageWindow *errorWindow_;
+    QString errorMsg_;
+    bool statusOk_;
 
 };
 

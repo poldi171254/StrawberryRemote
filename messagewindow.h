@@ -16,7 +16,10 @@ public:
     ~MessageWindow();
 
 public slots:
-    void Init(QString);
+    void Init();
+    void DisplayText(QString);
+
+signals:
     void Ok();
 
 private:
