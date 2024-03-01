@@ -1,9 +1,4 @@
 #include "outgoingmsg.h"
-#include <google/protobuf/message_lite.h>
-
-
-
-
 
 OutgoingMsg::OutgoingMsg(QObject *parent)
     : QObject{parent}
