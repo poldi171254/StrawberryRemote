@@ -18,6 +18,8 @@ public:
 
 public slots:
     void DisplayText(QString);
+    void Connect();
+    void Finish();
 
 signals:
     void statusChanged(QString status);

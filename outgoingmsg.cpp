@@ -1,7 +1,8 @@
 #include "outgoingmsg.h"
 
 OutgoingMsg::OutgoingMsg(QObject *parent)
-    : QObject{parent}
+    : QObject{parent},
+    msg_(new nw::remote::Message)
 {
 }
 
@@ -9,15 +10,19 @@ OutgoingMsg::~OutgoingMsg()
 {
 }
 
-bool OutgoingMsg::Start(QTcpSocket *socket)
+bool OutgoingMsg::BeginMsgExchange(QTcpSocket *socket)
 {
     socket_ = socket;
-    msg_ = new nw::remote::Message;
-    msg_->set_type(nw::remote::MSG_TYPE_CONNECT);
-    msg_->set_version(1);
-    msg_->mutable_request_connect()->set_send_current_song(true);
-    Send();
+    RequestSongInfo();
     return  statusOk_;
+}
+
+void OutgoingMsg::RequestSongInfo()
+{
+    msg_->Clear();
+    msg_->set_type(nw::remote::MSG_TYPE_REQUEST_SONG_INFO);
+    msg_->mutable_request_song_metadata()->set_send(true);
+    Send();
 }
 
 
@@ -27,7 +32,6 @@ void OutgoingMsg::Send()
     std::string  msgOut_;
 
     msg_->SerializeToString(&msgOut_);
-
 
     bytesOut_ = msg_->ByteSizeLong();
 

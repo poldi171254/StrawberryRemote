@@ -9,8 +9,8 @@ ConnectionStatus::ConnectionStatus(QWidget *parent)
 {
     ui_->setupUi(this);
     ui_->connectionStatus->setReadOnly(true);
-    QWidget::connect(ui_->continueButton, &QAbstractButton::pressed, this, &ConnectionStatus::Continue );
-    QWidget::connect(ui_->cancelButton, &QAbstractButton::pressed, this, &ConnectionStatus::Cancel );
+    QWidget::connect(ui_->continueButton, &QAbstractButton::pressed, this, &ConnectionStatus::Connect);
+    QWidget::connect(ui_->cancelButton, &QAbstractButton::pressed, this, &ConnectionStatus::Finish);
 }
 
 ConnectionStatus::~ConnectionStatus()
@@ -18,10 +18,19 @@ ConnectionStatus::~ConnectionStatus()
     delete ui_;
 }
 
-
 void ConnectionStatus::DisplayText(QString text)
 {
     ui_->connectionStatus->setText(text);
+}
+
+void ConnectionStatus::Connect()
+{
+    emit Continue();
+}
+
+void ConnectionStatus::Finish()
+{
+    emit Cancel();
 }
 
 

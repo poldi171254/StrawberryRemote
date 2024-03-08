@@ -1,10 +1,21 @@
 #include "controller.h"
+#include "proto/RemoteMessages.pb.h"
+
 
 Controller::Controller(QObject *parent)
     : QObject{parent},
-      connection_(new Connection(this))
+      connection_(new Connection(this)),
+    msgIn_(new IncomingMsg),
+    msgOut_(new OutgoingMsg),
+    player_(new Player)
 {
     QObject::connect(connection_, &Connection::ConnectionError, this, &Controller::ConnectionError);
+    QObject::connect(msgIn_, &IncomingMsg::InMsgParsed, this, &Controller::IncomingMsgReceived);
+    QObject::connect(player_, &Player::Playing, this, &Controller::Play);
+    QObject::connect(player_, &Player::Paused, this, &Controller::Pause);
+    QObject::connect(player_, &Player::PlayPrevisous, this, &Controller::Previous);
+    QObject::connect(player_, &Player::PlayNext, this, &Controller::Next);
+    QObject::connect(player_, &Player::Finished, this, &Controller::Finish);
 
 }
 
@@ -28,7 +39,6 @@ void Controller::Init(QString ipAddr, int port)
         statusWindow_->DisplayText("Connected to Server at " + ipAddr_ + " Port " + QString::number(port_));
         statusWindow_->show();
     }
-
 }
 
 
@@ -59,18 +69,64 @@ void Controller::Cancel()
 void Controller::Continue()
 {
     qInfo("Controller Continue");
-    DoWork();
+    MsgHandler();
 }
 
-void Controller::DoWork()
-{
-    player_ = new Player;
+void Controller::MsgHandler()
+{    
     player_->activateWindow();
     player_->show();
 
-    connection_->Connect();
+    socket_ = connection_->GetSocket();
+    msgIn_->Start(socket_);
+    msgOut_->BeginMsgExchange(socket_);
 
 }
+
+void Controller::IncomingMsgReceived()
+{
+    nw::remote::Message *msg = msgIn_->GetMsg();
+
+    switch (msg->type()) {
+    case nw::remote::MSG_TYPE_REPLY_SONG_INFO:
+        player_->SetTitle(QString::fromStdString((msg->response_song_metadata().song_metadata().title())));
+        qInfo("Received Song Info");
+        break;
+    default:
+        qInfo("Not sure what the MsgType is ");
+        player_->SetMessage("The player is currently paused");
+        break;
+    }
+    player_->update();
+    player_->show();
+}
+
+void Controller::Play()
+{
+    qInfo("Controller Play ");
+}
+
+void Controller::Pause()
+{
+    qInfo("Controller Pause ");
+}
+
+void Controller::Next()
+{
+    qInfo("Controller Next ");
+}
+
+void Controller::Finish()
+{
+    qInfo("Controller Finish ");
+}
+
+
+void Controller::Previous()
+{
+    qInfo("Controller Previous ");
+}
+
 
 void Controller::Ready()
 {

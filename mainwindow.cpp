@@ -10,6 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui_->setupUi(this);
     //controller_ = new Controller();
     QWidget::connect(ui_->connectButton, &QAbstractButton::pressed, this, &MainWindow::connect);
+    QWidget::connect(ui_->finishButton, &QAbstractButton::pressed, this, &MainWindow::Finish);
 }
 
 MainWindow::~MainWindow()
@@ -21,6 +22,11 @@ void MainWindow::Init()
 {
     ipAddress_ = controller_->GetIpAddress();
     ui_->ipAddress->setText(ipAddress_);
+}
+
+void MainWindow::Finish()
+{
+    QMainWindow::close();
 }
 
 void MainWindow::connect()

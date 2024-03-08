@@ -9,7 +9,8 @@
 #include <QDebug>
 #include "connection.h"
 #include "player.h"
-
+#include "incomingmsg.h"
+#include "outgoingmsg.h"
 
 
 #include "connectionstatus.h"
@@ -24,10 +25,16 @@ public:
     QString GetIpAddress();
     void Cancel();
     void Continue();
-    void DoWork();
+    void MsgHandler();
+    void IncomingMsgReceived();
+    void Play();
+    void Pause();
+    void Next();
+    void Previous();
+    void Finish();
 
 signals:
-    void Finish();
+    //void Finish();
 
 private slots:
     void Ready();
@@ -40,9 +47,9 @@ private:
     Connection *connection_;
     Player *player_;
     bool statusOk_ = false;
-
-
-
+    OutgoingMsg *msgOut_;
+    IncomingMsg *msgIn_;
+    QTcpSocket *socket_;
 };
 
 #endif // CONTROLLER_H

@@ -14,6 +14,23 @@ class Player : public QDialog
 public:
     explicit Player(QWidget *parent = nullptr);
     ~Player();
+    void SetTitle(QString);
+
+    void SetMessage(QString);
+
+public slots:
+    void Play();
+    void Pause();
+    void Next();
+    void Previous();
+    void Finish();
+
+signals:
+    void Playing();
+    void Paused();
+    void PlayNext();
+    void PlayPrevisous();
+    void Finished();
 
 private:
     Ui::Player *ui_;

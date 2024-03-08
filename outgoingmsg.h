@@ -14,7 +14,8 @@ class OutgoingMsg : public QObject
 public:
     explicit OutgoingMsg(QObject *parent = nullptr);
     ~OutgoingMsg();
-    bool Start(QTcpSocket*);
+    bool BeginMsgExchange(QTcpSocket*);
+    void RequestSongInfo();
 
 signals:
 
@@ -23,7 +24,6 @@ private:
     QTcpSocket *socket_;
     bool statusOk_ = false;
     nw::remote::Message *msg_;
-
     long bytesOut_;
 };
 

@@ -19,6 +19,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void Init();
+    void Finish();
 
 private slots:
     void connect();
