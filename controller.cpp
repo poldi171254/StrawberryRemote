@@ -79,8 +79,8 @@ void Controller::MsgHandler()
 
     socket_ = connection_->GetSocket();
     msgIn_->Start(socket_);
-    msgOut_->BeginMsgExchange(socket_);
-
+    msgOut_->Start(socket_);
+    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_SONG_INFO);
 }
 
 void Controller::IncomingMsgReceived()
@@ -90,11 +90,18 @@ void Controller::IncomingMsgReceived()
     switch (msg->type()) {
     case nw::remote::MSG_TYPE_REPLY_SONG_INFO:
         player_->SetTitle(QString::fromStdString((msg->response_song_metadata().song_metadata().title())));
-        qInfo("Received Song Info");
+        player_->SetArtist(QString::fromStdString((msg->response_song_metadata().song_metadata().artist())));
+        player_->SetAlbum(QString::fromStdString((msg->response_song_metadata().song_metadata().album())));
+        player_->SetTrack(QString::number((msg->response_song_metadata().song_metadata().track())));
+        player_->SetYear(QString::fromStdString((msg->response_song_metadata().song_metadata().stryear())));
+        player_->SetGenre(QString::fromStdString((msg->response_song_metadata().song_metadata().genre())));
+        player_->SetPlayCount(QString::number(msg->response_song_metadata().song_metadata().playcount()));
+        player_->SetSongLength(QString::fromStdString((msg->response_song_metadata().song_metadata().songlength())));
+        player_->SetMessage("Playing");
         break;
     default:
         qInfo("Not sure what the MsgType is ");
-        player_->SetMessage("The player is currently paused");
+        player_->SetMessage("Not sure that the current song is, please press the Play Button");
         break;
     }
     player_->update();
@@ -103,27 +110,32 @@ void Controller::IncomingMsgReceived()
 
 void Controller::Play()
 {
-    qInfo("Controller Play ");
+    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_PLAY);
+
 }
 
 void Controller::Pause()
 {
+    msgOut_->RequestPause();
     qInfo("Controller Pause ");
 }
 
 void Controller::Next()
 {
+    msgOut_->RequestPause();
     qInfo("Controller Next ");
 }
 
 void Controller::Finish()
 {
+    msgOut_->RequestFinish();
     qInfo("Controller Finish ");
 }
 
 
 void Controller::Previous()
 {
+    msgOut_->RequestPrevious();
     qInfo("Controller Previous ");
 }
 

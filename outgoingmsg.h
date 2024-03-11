@@ -14,13 +14,21 @@ class OutgoingMsg : public QObject
 public:
     explicit OutgoingMsg(QObject *parent = nullptr);
     ~OutgoingMsg();
-    bool BeginMsgExchange(QTcpSocket*);
+    bool Start(QTcpSocket*);
     void RequestSongInfo();
+    void RequestPlay();
+    void RequestPause();
+    void RequestPrevious();
+    void RequestNext();
+    void RequestFinish();
+    void Send(int);
+
+
 
 signals:
 
 private:
-    void Send();
+
     QTcpSocket *socket_;
     bool statusOk_ = false;
     nw::remote::Message *msg_;

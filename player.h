@@ -15,7 +15,13 @@ public:
     explicit Player(QWidget *parent = nullptr);
     ~Player();
     void SetTitle(QString);
-
+    void SetArtist(QString);
+    void SetAlbum(QString);
+    void SetTrack(QString);
+    void SetYear(QString);
+    void SetGenre(QString);
+    void SetPlayCount(QString);
+    void SetSongLength(QString);
     void SetMessage(QString);
 
 public slots:
