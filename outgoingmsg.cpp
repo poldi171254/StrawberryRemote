@@ -70,12 +70,33 @@ void OutgoingMsg::Send(int msgType)
     msg_->Clear();
 
     switch (msgType) {
-    case nw::remote::MSG_TYPE_REQUEST_SONG_INFO:
-        msg_->set_type(nw::remote::MSG_TYPE_REQUEST_SONG_INFO);
-        msg_->mutable_request_song_metadata()->set_send(true);
-        break;
-    default:
-        break;
+        case nw::remote::MSG_TYPE_REQUEST_SONG_INFO:
+            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_SONG_INFO);
+            msg_->mutable_request_song_metadata()->set_send(true);
+            break;
+        case nw::remote::MSG_TYPE_REQUEST_PLAY:
+            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PLAY);
+            msg_->mutable_request_play()->set_play(true);
+            break;
+        case nw::remote::MSG_TYPE_REQUEST_NEXT:
+            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_NEXT);
+            msg_->mutable_request_next_track()->set_next(true);
+            break;
+        case nw::remote::MSG_TYPE_REQUEST_PREVIOUS:
+            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PREVIOUS);
+            msg_->mutable_request_previous_track()->set_previous(true);
+            break;
+        case nw::remote::MSG_TYPE_REQUEST_PAUSE:
+            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PAUSE);
+            msg_->mutable_request_pause()->set_pause(true);
+            break;
+        case nw::remote::MSG_TYPE_REQUEST_FINISH:
+            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_FINISH);
+            msg_->mutable_request_stop()->set_stop(true);
+            break;
+        default:
+            qInfo() << "Unknown Message type " << msgType;
+            break;
     }
     std::string  msgOut_;
 

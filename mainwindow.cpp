@@ -35,5 +35,5 @@ void MainWindow::connect()
     port_ = ui_->port->value();
     ui_->connectButton->setEnabled(false);
     controller_->Init(ipAddress_, port_);
-    qDebug() << "Window popup";
+    Finish();
 }

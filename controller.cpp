@@ -62,13 +62,12 @@ QString Controller::GetIpAddress()
 
 void Controller::Cancel()
 {
-    qInfo("Controller Cancel ");
     statusWindow_->close();
 }
 
 void Controller::Continue()
 {
-    qInfo("Controller Continue");
+    statusWindow_->close();
     MsgHandler();
 }
 
@@ -116,29 +115,25 @@ void Controller::Play()
 
 void Controller::Pause()
 {
-    msgOut_->RequestPause();
-    qInfo("Controller Pause ");
+    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_PAUSE);
+
 }
 
 void Controller::Next()
 {
-    msgOut_->RequestPause();
-    qInfo("Controller Next ");
+    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_NEXT);
 }
-
-void Controller::Finish()
-{
-    msgOut_->RequestFinish();
-    qInfo("Controller Finish ");
-}
-
 
 void Controller::Previous()
 {
-    msgOut_->RequestPrevious();
-    qInfo("Controller Previous ");
+    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_PREVIOUS);
 }
 
+
+void Controller::Finish()
+{
+    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_FINISH);
+}
 
 void Controller::Ready()
 {
