@@ -10,7 +10,7 @@ OutgoingMsg::~OutgoingMsg()
 {
 }
 
-bool OutgoingMsg::Start(QTcpSocket *socket)
+void OutgoingMsg::Start(QTcpSocket *socket)
 {
     socket_ = socket;
 }
@@ -99,7 +99,7 @@ void OutgoingMsg::Send(int msgType)
             break;
     }
     std::string  msgOut_;
-
+/*
     msg_->SerializeToString(&msgOut_);
 
     bytesOut_ = msg_->ByteSizeLong();
@@ -108,6 +108,31 @@ void OutgoingMsg::Send(int msgType)
 
         socket_->write(QByteArray::fromStdString(msgOut_));
         qInfo() << socket_->bytesToWrite() << " bytes written to socket " << socket_->socketDescriptor();
+        statusOk_ = true;
+        msg_->Clear();
+    }
+    else {
+        statusOk_ = false;
+    }
+*/
+    msg_->SerializeToString(&msgOut_);
+
+    QByteArray payload = QByteArray::fromStdString(msgOut_);
+    const quint32 msg_len = static_cast<quint32>(payload.size());
+
+    QByteArray framed_data;
+    framed_data.reserve(4 + payload.size());
+    framed_data.append(static_cast<char>((msg_len >> 24) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 16) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 8) & 0xFF));
+    framed_data.append(static_cast<char>(msg_len & 0xFF));
+    framed_data.append(payload);
+
+    bytesOut_ = framed_data.size();
+
+    if (socket_->isWritable()) {
+        socket_->write(framed_data);
+        qInfo() << bytesOut_ << " bytes written to socket " << socket_->socketDescriptor();
         statusOk_ = true;
         msg_->Clear();
     }

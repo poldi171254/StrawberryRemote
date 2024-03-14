@@ -1,0 +1,125 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-bab540b976639e0266d2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						3,
+						4,
+						5
+					]
+				},
+				{
+					"build" : "proto",
+					"jsonFile" : "directory-proto-Debug-23359ce0bf7287cdf681.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "proto",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0,
+						1
+					],
+					"name" : "StrawberryRemote",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "Proto::@4dcc01eb4302123f3a4a",
+					"jsonFile" : "target-Proto-Debug-4674139a60fa5efdb2b7.json",
+					"name" : "Proto",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "Proto_autogen::@4dcc01eb4302123f3a4a",
+					"jsonFile" : "target-Proto_autogen-Debug-68230d54a032e4f7a441.json",
+					"name" : "Proto_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "Proto_autogen_timestamp_deps::@4dcc01eb4302123f3a4a",
+					"jsonFile" : "target-Proto_autogen_timestamp_deps-Debug-fb0b4f6381bb200eeb5f.json",
+					"name" : "Proto_autogen_timestamp_deps",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "StrawberryRemote::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-StrawberryRemote-Debug-f7a80113e27a43fbdf76.json",
+					"name" : "StrawberryRemote",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "StrawberryRemote_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-StrawberryRemote_autogen-Debug-db5e377ec261353fabfa.json",
+					"name" : "StrawberryRemote_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "StrawberryRemote_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-StrawberryRemote_autogen_timestamp_deps-Debug-e8c3d92fad7e2a01d542.json",
+					"name" : "StrawberryRemote_autogen_timestamp_deps",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/llist/sec1/git/strawberryRemoteV3/build/Desktop_Qt_6_8_3-Debug",
+		"source" : "/home/llist/sec1/git/strawberryRemoteV3"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

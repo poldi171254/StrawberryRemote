@@ -8,20 +8,17 @@
 #include "proto/RemoteMessages.pb.h"
 #include "qtcpsocket.h"
 
-class IncomingMsg : public QObject
-{
+class IncomingMsg : public QObject {
     Q_OBJECT
 public:
     explicit IncomingMsg(QObject *parent = nullptr);
     ~IncomingMsg();
     void Start(QTcpSocket*);
-    void ProcessMsg();
+    void ProcessMsg(const QByteArray &complete_msg);
     nw::remote::Message* GetMsg();
-
 
 private slots:
     void ReadyRead();
-
 
 signals:
     void InMsgParsed();

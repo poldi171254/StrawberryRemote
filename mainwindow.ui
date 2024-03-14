@@ -33,7 +33,7 @@
       <x>60</x>
       <y>40</y>
       <width>263</width>
-      <height>27</height>
+      <height>29</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout">
@@ -54,8 +54,8 @@
      <rect>
       <x>60</x>
       <y>90</y>
-      <width>161</width>
-      <height>28</height>
+      <width>166</width>
+      <height>30</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -69,10 +69,10 @@
      <item>
       <widget class="QSpinBox" name="port">
        <property name="minimum">
-        <number>5050</number>
+        <number>8888</number>
        </property>
        <property name="maximum">
-        <number>6060</number>
+        <number>65535</number>
        </property>
       </widget>
      </item>
@@ -98,7 +98,7 @@
      <x>0</x>
      <y>0</y>
      <width>425</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
   </widget>

@@ -1,0 +1,13 @@
+Proto_autogen/timestamp: \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/CheckCXXSourceCompiles.cmake \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/CheckIncludeFileCXX.cmake \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/CheckLibraryExists.cmake \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/FindPackageHandleStandardArgs.cmake \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/FindPackageMessage.cmake \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/FindProtobuf.cmake \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/FindThreads.cmake \
+	/home/llist/Qt/Tools/CMake/share/cmake-3.30/Modules/SelectLibraryConfigurations.cmake \
+	/home/llist/sec1/git/strawberryRemoteV3/build/Desktop_Qt_6_8_3-Debug/proto/RemoteMessages.pb.cc \
+	/home/llist/sec1/git/strawberryRemoteV3/build/Desktop_Qt_6_8_3-Debug/proto/RemoteMessages.pb.h \
+	/home/llist/sec1/git/strawberryRemoteV3/proto/CMakeLists.txt \
+	/home/llist/Qt/Tools/CMake/bin/cmake

@@ -14,7 +14,7 @@ class OutgoingMsg : public QObject
 public:
     explicit OutgoingMsg(QObject *parent = nullptr);
     ~OutgoingMsg();
-    bool Start(QTcpSocket*);
+    void Start(QTcpSocket*);
     void RequestSongInfo();
     void RequestPlay();
     void RequestPause();

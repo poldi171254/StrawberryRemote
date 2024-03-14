@@ -133,6 +133,7 @@ void Controller::Previous()
 void Controller::Finish()
 {
     msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_FINISH);
+    delete player_;
 }
 
 void Controller::Ready()
