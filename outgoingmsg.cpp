@@ -10,7 +10,7 @@ OutgoingMsg::~OutgoingMsg()
 {
 }
 
-bool OutgoingMsg::Start(QTcpSocket *socket)
+void OutgoingMsg::Start(QTcpSocket *socket)
 {
     socket_ = socket;
 }
