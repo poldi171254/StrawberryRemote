@@ -96,7 +96,26 @@ void Controller::IncomingMsgReceived()
         player_->SetGenre(QString::fromStdString((msg->response_song_metadata().song_metadata().genre())));
         player_->SetPlayCount(QString::number(msg->response_song_metadata().song_metadata().playcount()));
         player_->SetSongLength(QString::fromStdString((msg->response_song_metadata().song_metadata().songlength())));
-        player_->SetMessage("Playing");
+        switch (msg->response_song_metadata().player_state()) {
+        case nw::remote::PLAYER_STATUS_PLAYING:
+            player_->SetMessage("Playing");
+            break;
+        case nw::remote::PLAYER_STATUS_PAUSED:
+            player_->SetMessage("Paused");
+            break;
+        case nw::remote::PLAYER_STATUS_IDLE:
+            player_->SetMessage("Idle");
+            break;
+        case nw::remote::PLAYER_STATUS_EMPTY:
+            player_->SetMessage("Empty");
+            break;
+        case nw::remote::PLAYER_STATUS_ERROR:
+            player_->SetMessage("Error");
+            break;
+        default:
+            player_->SetMessage("Unknown");
+            break;
+        }
         break;
     default:
         qInfo("Not sure what the MsgType is ");
