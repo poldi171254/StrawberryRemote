@@ -5,7 +5,7 @@
 
 #include <google/protobuf/message.h>
 
-#include "proto/RemoteMessages.pb.h"
+#include "RemoteMessages.qpb.h"
 #include "qtcpsocket.h"
 
 class IncomingMsg : public QObject {
@@ -24,7 +24,7 @@ signals:
     void InMsgParsed();
 
 private:
-    nw::remote::Message *msg_;
+    nw::remote::Message msg_;
     QTcpSocket *socket_;
     long bytesIn_;
     QByteArray msgStream_;

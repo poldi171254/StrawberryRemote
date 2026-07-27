@@ -5,7 +5,7 @@
 #include <QByteArray>
 #include <QTcpSocket>
 #include <QDebug>
-#include "proto/RemoteMessages.pb.h"
+#include "RemoteMessages.qpb.h"
 
 
 class OutgoingMsg : public QObject
@@ -21,7 +21,7 @@ public:
     void RequestPrevious();
     void RequestNext();
     void RequestFinish();
-    void Send(int);
+    void Send(nw::remote::MsgTypeGadget::MsgType msg_type);
 
 
 
@@ -31,7 +31,7 @@ private:
 
     QTcpSocket *socket_;
     bool statusOk_ = false;
-    nw::remote::Message *msg_;
+    nw::remote::Message msg_;
     long bytesOut_;
 };
 

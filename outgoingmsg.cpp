@@ -1,8 +1,10 @@
+#include <QProtobufSerializer>
 #include "outgoingmsg.h"
 
 OutgoingMsg::OutgoingMsg(QObject *parent)
     : QObject{parent},
-    msg_(new nw::remote::Message)
+    socket_(nullptr),
+    bytesOut_(0)
 {
 }
 
@@ -18,106 +20,91 @@ void OutgoingMsg::Start(QTcpSocket *socket)
 
 void OutgoingMsg::RequestSongInfo()
 {
-    msg_->Clear();
-    msg_->set_type(nw::remote::MSG_TYPE_REQUEST_SONG_INFO);
-    msg_->mutable_request_song_metadata()->set_send(true);
-
+    Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO);
 }
 
 void OutgoingMsg::RequestPlay()
 {
-    msg_->Clear();
-    msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PLAY);
-    msg_->mutable_request_play()->set_play(true);
-
+    Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PLAY);
 }
 
 void OutgoingMsg::RequestPause()
 {
-    msg_->Clear();
-    msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PAUSE);
-    msg_->mutable_request_pause()->set_pause(true);
-
+    Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PAUSE);
 }
 
 void OutgoingMsg::RequestPrevious()
 {
-    msg_->Clear();
-    msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PREVIOUS);
-    msg_->mutable_request_previous_track()->set_previous(true);
-
+    Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PREVIOUS);
 }
 
 void OutgoingMsg::RequestNext()
 {
-    msg_->Clear();
-    msg_->set_type(nw::remote::MSG_TYPE_REQUEST_NEXT);
-    msg_->mutable_request_next_track()->set_next(true);
-
+    Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_NEXT);
 }
 
 void OutgoingMsg::RequestFinish()
 {
-    msg_->Clear();
-    msg_->set_type(nw::remote::MSG_TYPE_REQUEST_FINISH);
-    msg_->mutable_request_stop()->set_stop(true);
-
+    Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_FINISH);
 }
 
 
-void OutgoingMsg::Send(int msgType)
+void OutgoingMsg::Send(nw::remote::MsgTypeGadget::MsgType msg_type)
 {
-    msg_->Clear();
+    msg_ = nw::remote::Message();
+    msg_.setType(msg_type);
 
-    switch (msgType) {
-        case nw::remote::MSG_TYPE_REQUEST_SONG_INFO:
-            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_SONG_INFO);
-            msg_->mutable_request_song_metadata()->set_send(true);
-            break;
-        case nw::remote::MSG_TYPE_REQUEST_PLAY:
-            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PLAY);
-            msg_->mutable_request_play()->set_play(true);
-            break;
-        case nw::remote::MSG_TYPE_REQUEST_NEXT:
-            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_NEXT);
-            msg_->mutable_request_next_track()->set_next(true);
-            break;
-        case nw::remote::MSG_TYPE_REQUEST_PREVIOUS:
-            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PREVIOUS);
-            msg_->mutable_request_previous_track()->set_previous(true);
-            break;
-        case nw::remote::MSG_TYPE_REQUEST_PAUSE:
-            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_PAUSE);
-            msg_->mutable_request_pause()->set_pause(true);
-            break;
-        case nw::remote::MSG_TYPE_REQUEST_FINISH:
-            msg_->set_type(nw::remote::MSG_TYPE_REQUEST_FINISH);
-            msg_->mutable_request_stop()->set_stop(true);
-            break;
-        default:
-            qInfo() << "Unknown Message type " << msgType;
-            break;
+    switch (msg_type) {
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO: {
+        nw::remote::RequestSongMetadata request;
+        request.setSend(true);
+        msg_.setRequestSongMetadata(request);
+        break;
     }
-    std::string  msgOut_;
-/*
-    msg_->SerializeToString(&msgOut_);
-
-    bytesOut_ = msg_->ByteSizeLong();
-
-    if(socket_->isWritable()){
-
-        socket_->write(QByteArray::fromStdString(msgOut_));
-        qInfo() << socket_->bytesToWrite() << " bytes written to socket " << socket_->socketDescriptor();
-        statusOk_ = true;
-        msg_->Clear();
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PLAY: {
+        nw::remote::RequestPlay request;
+        request.setPlay(true);
+        msg_.setRequestPlay(request);
+        break;
     }
-    else {
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_NEXT: {
+        nw::remote::RequestNextTrack request;
+        request.setNext(true);
+        msg_.setRequestNextTrack(request);
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PREVIOUS: {
+        nw::remote::RequestPreviousTrack request;
+        request.setPrevious(true);
+        msg_.setRequestPreviousTrack(request);
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PAUSE: {
+        nw::remote::RequestPause request;
+        request.setPause(true);
+        msg_.setRequestPause(request);
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_FINISH: {
+        nw::remote::RequestStop request;
+        request.setStop(true);
+        msg_.setRequestStop(request);
+        break;
+    }
+    default:
+        qInfo() << "Unknown Message type";
+        return;
+    }
+
+    QProtobufSerializer serializer;
+    QByteArray payload = serializer.serialize(&msg_);
+
+    if (serializer.lastError() != QAbstractProtobufSerializer::Error::None) {
+        qInfo() << "Failed to serialize message:" << serializer.lastErrorString();
         statusOk_ = false;
+        return;
     }
-*/
-    msg_->SerializeToString(&msgOut_);
 
-    QByteArray payload = QByteArray::fromStdString(msgOut_);
     const quint32 msg_len = static_cast<quint32>(payload.size());
 
     QByteArray framed_data;
@@ -130,16 +117,12 @@ void OutgoingMsg::Send(int msgType)
 
     bytesOut_ = framed_data.size();
 
-    if (socket_->isWritable()) {
+    if (socket_ && socket_->isWritable()) {
         socket_->write(framed_data);
         qInfo() << bytesOut_ << " bytes written to socket " << socket_->socketDescriptor();
         statusOk_ = true;
-        msg_->Clear();
     }
     else {
         statusOk_ = false;
     }
 }
-
-
-

@@ -1,2 +1,0 @@
-set(__QT_DEPLOY_TARGET_StrawberryRemote_FILE /home/llist/sec1/git/strawberryRemoteV3/build/Desktop_Qt_6_8_3-Debug/StrawberryRemote)
-set(__QT_DEPLOY_TARGET_StrawberryRemote_TYPE EXECUTABLE)

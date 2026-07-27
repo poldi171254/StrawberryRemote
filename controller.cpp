@@ -1,10 +1,10 @@
 #include "controller.h"
-#include "proto/RemoteMessages.pb.h"
+#include "RemoteMessages.qpb.h"
 
 
 Controller::Controller(QObject *parent)
     : QObject{parent},
-      connection_(new Connection(this)),
+    connection_(new Connection(this)),
     msgIn_(new IncomingMsg),
     msgOut_(new OutgoingMsg),
     player_(new Player)
@@ -72,14 +72,14 @@ void Controller::Continue()
 }
 
 void Controller::MsgHandler()
-{    
+{
     player_->activateWindow();
     player_->show();
 
     socket_ = connection_->GetSocket();
     msgIn_->Start(socket_);
     msgOut_->Start(socket_);
-    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_SONG_INFO);
+    msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO);
 }
 
 void Controller::IncomingMsgReceived()
@@ -87,33 +87,49 @@ void Controller::IncomingMsgReceived()
     nw::remote::Message *msg = msgIn_->GetMsg();
 
     switch (msg->type()) {
-    case nw::remote::MSG_TYPE_REPLY_SONG_INFO:
-        player_->SetTitle(QString::fromStdString((msg->response_song_metadata().song_metadata().title())));
-        player_->SetArtist(QString::fromStdString((msg->response_song_metadata().song_metadata().artist())));
-        player_->SetAlbum(QString::fromStdString((msg->response_song_metadata().song_metadata().album())));
-        player_->SetTrack(QString::number((msg->response_song_metadata().song_metadata().track())));
-        player_->SetYear(QString::fromStdString((msg->response_song_metadata().song_metadata().stryear())));
-        player_->SetGenre(QString::fromStdString((msg->response_song_metadata().song_metadata().genre())));
-        player_->SetPlayCount(QString::number(msg->response_song_metadata().song_metadata().playcount()));
-        player_->SetSongLength(QString::fromStdString((msg->response_song_metadata().song_metadata().songlength())));
-        switch (msg->response_song_metadata().player_state()) {
-        case nw::remote::PLAYER_STATUS_PLAYING:
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REPLY_SONG_INFO: {
+        const nw::remote::SongMetadata song = msg->responseSongMetadata().songMetadata();
+        player_->SetTitle(song.title());
+        player_->SetArtist(song.artist());
+        player_->SetAlbum(song.album());
+        player_->SetTrack(QString::number(song.track()));
+        player_->SetYear(song.stryear());
+        player_->SetGenre(song.genre());
+        player_->SetPlayCount(QString::number(song.playcount()));
+        player_->SetSongLength(song.songlength());
+        switch (msg->responseSongMetadata().playerState()) {
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PLAYING:
             player_->SetMessage("Playing");
             break;
-        case nw::remote::PLAYER_STATUS_PAUSED:
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PAUSED:
             player_->SetMessage("Paused");
             break;
-        case nw::remote::PLAYER_STATUS_IDLE:
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_IDLE:
             player_->SetMessage("Idle");
             break;
-        case nw::remote::PLAYER_STATUS_EMPTY:
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_EMPTY:
             player_->SetMessage("Empty");
             break;
-        case nw::remote::PLAYER_STATUS_ERROR:
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_ERROR:
             player_->SetMessage("Error");
             break;
         default:
             player_->SetMessage("Unknown");
+            break;
+        }
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_ENGINE_STATE_CHANGE:
+        switch (msg->engineStateChange().state()) {
+        case nw::remote::EngineStateGadget::EngineState::ENGINE_STATE_PLAYING:
+            player_->SetMessage("Playing");
+            msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO);
+            break;
+        case nw::remote::EngineStateGadget::EngineState::ENGINE_STATE_PAUSED:
+            player_->SetMessage("Paused");
+            break;
+        default:
+            player_->SetMessage("Stopped");
             break;
         }
         break;
@@ -128,30 +144,30 @@ void Controller::IncomingMsgReceived()
 
 void Controller::Play()
 {
-    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_PLAY);
+    msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PLAY);
 
 }
 
 void Controller::Pause()
 {
-    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_PAUSE);
+    msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PAUSE);
 
 }
 
 void Controller::Next()
 {
-    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_NEXT);
+    msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_NEXT);
 }
 
 void Controller::Previous()
 {
-    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_PREVIOUS);
+    msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_PREVIOUS);
 }
 
 
 void Controller::Finish()
 {
-    msgOut_->Send(nw::remote::MSG_TYPE_REQUEST_FINISH);
+    msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_FINISH);
     delete player_;
 }
 
@@ -165,4 +181,3 @@ void Controller::ConnectionError()
     qInfo("Controller ConnectionError");
     Cancel();
 }
-

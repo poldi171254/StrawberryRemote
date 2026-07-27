@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
 
 project(StrawberryRemote LANGUAGES CXX)
 
@@ -12,7 +12,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Widgets Core Network Protobuf)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Core Network Protobuf)
 
-add_subdirectory(proto)
+qt_add_protobuf(RemoteMessages
+  PROTO_FILES RemoteMessages.proto
+)
 
 add_executable(StrawberryRemote
         main.cpp
@@ -36,17 +38,13 @@ add_executable(StrawberryRemote
         messagewindow.h messagewindow.cpp messagewindow.ui
 )
 
-target_include_directories(StrawberryRemote PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-
 target_link_libraries(StrawberryRemote
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::Protobuf
-    ${Protobuf_LIBRARIES}
-    Proto
+    RemoteMessages
 )
-
 
 include(GNUInstallDirs)
 install(TARGETS StrawberryRemote

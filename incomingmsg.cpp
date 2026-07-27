@@ -1,8 +1,8 @@
+#include <QProtobufSerializer>
 #include "incomingmsg.h"
 
 IncomingMsg::IncomingMsg(QObject *parent)
-    : QObject{parent},
-    msg_(new nw::remote::Message)
+    : QObject{parent}
 {}
 
 IncomingMsg::~IncomingMsg()
@@ -14,14 +14,15 @@ void IncomingMsg::Start(QTcpSocket *socket){
     QObject::connect(socket_, &QAbstractSocket::readyRead, this, &IncomingMsg::ReadyRead);
 }
 
-
 void IncomingMsg::ProcessMsg(const QByteArray &complete_msg) {
-    msgString_ = complete_msg.toStdString();
-    msg_->ParseFromString(msgString_);
-    qInfo() << msgString_.size() << " bytes read from socket ";
+    QProtobufSerializer serializer;
+    if (!serializer.deserialize(&msg_, complete_msg)) {
+        qInfo() << "Failed to parse message:" << serializer.lastErrorString();
+        return;
+    }
+    qInfo() << complete_msg.size() << " bytes read from socket ";
     emit InMsgParsed();
 }
-
 void IncomingMsg::ReadyRead() {
     qInfo() << "Ready To Read";
     msgStream_.append(socket_->readAll());
@@ -52,5 +53,5 @@ void IncomingMsg::ReadyRead() {
 
 nw::remote::Message* IncomingMsg::GetMsg()
 {
-    return msg_;
+    return &msg_;
 }
