@@ -34,6 +34,7 @@ add_executable(StrawberryRemote
         connection.cpp
         player.h
         player.cpp
+        protocolconstants.h
         player.ui
         messagewindow.h messagewindow.cpp messagewindow.ui
 )

@@ -22,6 +22,7 @@ public:
     void SetGenre(QString);
     void SetPlayCount(QString);
     void SetSongLength(QString);
+    void SetRemaining(QString);
     void SetMessage(QString);
 
 public slots:

@@ -2,18 +2,17 @@
 #define CONTROLLER_H
 
 #include <QObject>
+#include <QString>
+#include <QTimer>
+#include <QTcpSocket>
 #include <QHostAddress>
 #include <QNetworkInterface>
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QDebug>
+
 #include "connection.h"
-#include "player.h"
+#include "connectionstatus.h"
 #include "incomingmsg.h"
 #include "outgoingmsg.h"
-
-
-#include "connectionstatus.h"
+#include "player.h"
 
 class Controller : public QObject
 {
@@ -21,35 +20,47 @@ class Controller : public QObject
 public:
     explicit Controller(QObject *parent = nullptr);
     ~Controller();
-    void Init(QString, int);
+
+    void Init(QString ipAddr, int port);
     QString GetIpAddress();
+
+public slots:
     void Cancel();
     void Continue();
-    void MsgHandler();
     void IncomingMsgReceived();
     void Play();
     void Pause();
     void Next();
     void Previous();
     void Finish();
-
-signals:
-    //void Finish();
-
-private slots:
     void Ready();
     void ConnectionError();
+    void SocketDisconnected();
 
 private:
-    ConnectionStatus *statusWindow_;
+    void MsgHandler();
+    void ShowMessage(const QString &text);
+
+    // Remaining-time countdown. The server sends the current position and the
+    // track length with the song info; between those updates the client ticks
+    // down locally once per second while the player is playing.
+    void TickRemaining();
+    void UpdateRemainingDisplay();
+
+    Connection      *connection_   = nullptr;
+    IncomingMsg     *msgIn_        = nullptr;
+    OutgoingMsg     *msgOut_       = nullptr;
+    Player          *player_       = nullptr;
+    ConnectionStatus *statusWindow_ = nullptr;
+    QTcpSocket      *socket_       = nullptr;
+
+    QTimer *countdown_timer_ = nullptr;
+    int remaining_seconds_ = 0;
+
     QString ipAddr_;
-    int port_;
-    Connection *connection_;
-    Player *player_;
+    int port_ = 0;
     bool statusOk_ = false;
-    OutgoingMsg *msgOut_;
-    IncomingMsg *msgIn_;
-    QTcpSocket *socket_;
+    bool expecting_disconnect_ = false;
 };
 
 #endif // CONTROLLER_H

@@ -62,6 +62,11 @@ void Player::SetSongLength(QString songLength)
     ui_->songLength->setPlaceholderText(songLength);
 }
 
+void Player::SetRemaining(QString remaining)
+{
+    ui_->songlengthremaining->setText(remaining);
+}
+
 void Player::SetMessage(QString statusMsg)
 {
     ui_->statusMessage->setPlaceholderText(statusMsg);
