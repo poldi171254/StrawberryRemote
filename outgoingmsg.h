@@ -21,11 +21,12 @@ public:
     void RequestPrevious();
     void RequestNext();
     void RequestFinish();
+    void RequestInitialInfo();
     void Send(nw::remote::MsgTypeGadget::MsgType msg_type);
-
-
-
-signals:
+    void RequestPlaylistSongs(quint32 playlist_id, quint32 upcoming_count);
+    void RequestPlaySong(quint32 playlist_id, quint32 row_index);
+    void RequestAddSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name);
+    void RequestRemoveSongFromPlaylist(quint32 playlist_id, quint32 row_index);
 
 private:
 

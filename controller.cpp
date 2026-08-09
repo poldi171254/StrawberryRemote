@@ -16,10 +16,13 @@ Controller::Controller(QObject *parent)
     QObject::connect(player_, &Player::PlayPrevisous, this, &Controller::Previous);
     QObject::connect(player_, &Player::PlayNext, this, &Controller::Next);
     QObject::connect(player_, &Player::Finished, this, &Controller::Finish);
-
     countdown_timer_ = new QTimer(this);
     countdown_timer_->setInterval(1000);
     QObject::connect(countdown_timer_, &QTimer::timeout, this, &Controller::TickRemaining);
+    QObject::connect(player_, &Player::PlaylistTabSelected, this, &Controller::PlaylistTabSelected);
+    QObject::connect(player_, &Player::SongDoubleClicked, this, &Controller::SongDoubleClicked);
+    QObject::connect(player_, &Player::AddCurrentSongToPlaylist, this, &Controller::AddCurrentSongToPlaylist);
+    QObject::connect(player_, &Player::RemoveSongFromPlaylist, this, &Controller::RemoveSongFromPlaylist);
 }
 
 Controller::~Controller() = default;
@@ -128,6 +131,14 @@ void Controller::TickRemaining()
     UpdateRemainingDisplay();
 }
 
+// Pushes the current column headers / previous / current / upcoming rows to the player window.
+void Controller::UpdateQueueDisplay()
+{
+    if (player_) {
+        player_->SetQueue(current_column_headers_, previous_rows_, current_row_, has_current_row_, upcoming_rows_);
+    }
+}
+
 void Controller::IncomingMsgReceived()
 {
     nw::remote::Message *msg = msgIn_->GetMsg();
@@ -139,15 +150,6 @@ void Controller::IncomingMsgReceived()
     switch (msg->type()) {
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REPLY_SONG_INFO: {
         const nw::remote::ResponseSongMetadata response = msg->responseSongMetadata();
-        const nw::remote::SongMetadata song = response.songMetadata();
-        player_->SetTitle(song.title());
-        player_->SetArtist(song.artist());
-        player_->SetAlbum(song.album());
-        player_->SetTrack(QString::number(song.track()));
-        player_->SetYear(song.stryear());
-        player_->SetGenre(song.genre());
-        player_->SetPlayCount(QString::number(song.playcount()));
-        player_->SetSongLength(song.songlength());
 
         // Resync the countdown from the server's authoritative position.
         const quint32 length_seconds = response.lengthSeconds();
@@ -192,6 +194,10 @@ void Controller::IncomingMsgReceived()
             player_->SetMessage("Playing");
             // The reply to this restarts the countdown with a fresh position.
             msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO);
+            // The current/upcoming rows may have shifted; refresh the queue too.
+            if (has_viewed_playlist_&& has_active_playlist_ && viewed_playlist_id_ == active_playlist_id_) {
+                msgOut_->RequestPlaylistSongs(active_playlist_id_, 25);
+            }
             break;
         case nw::remote::EngineStateGadget::EngineState::ENGINE_STATE_PAUSED:
             player_->SetMessage("Paused");
@@ -233,13 +239,183 @@ void Controller::IncomingMsgReceived()
             }
             player_->activateWindow();
             player_->show();
-            msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO);
+            msgOut_->RequestInitialInfo();
         }
         else {
             expecting_disconnect_ = true;
             ShowMessage("Server refused the connection");
         }
         break;
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_INITIAL_INFO: {
+        const nw::remote::ResponseSongMetadata response = msg->responseInitialInfo().songInfo();
+
+        const quint32 length_seconds = response.lengthSeconds();
+        const quint32 position_seconds = response.positionSeconds();
+        remaining_seconds_ = (length_seconds > position_seconds)
+                                 ? static_cast<int>(length_seconds - position_seconds)
+                                 : 0;
+        UpdateRemainingDisplay();
+
+        switch (response.playerState()) {
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PLAYING:
+            player_->SetMessage("Playing");
+            if (remaining_seconds_ > 0) {
+                countdown_timer_->start();
+            }
+            break;
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PAUSED:
+            player_->SetMessage("Paused");
+            countdown_timer_->stop();
+            break;
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_IDLE:
+            player_->SetMessage("Idle");
+            countdown_timer_->stop();
+            break;
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_ERROR:
+            player_->SetMessage("Error");
+            countdown_timer_->stop();
+            break;
+        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_EMPTY:
+        default:
+            player_->SetMessage("No song selected");
+            countdown_timer_->stop();
+            remaining_seconds_ = 0;
+            UpdateRemainingDisplay();
+            break;
+        }
+
+        const nw::remote::ResponsePlaylists playlists_response = msg->responseInitialInfo().playlists();
+        playlist_names_.clear();
+        playlist_ids_.clear();
+        active_playlist_tab_index_ = -1;
+        has_active_playlist_ = false;
+        int idx = 0;
+        for (const nw::remote::PlaylistInfo &pl : playlists_response.playlists()) {
+            playlist_names_.append(pl.name());
+            playlist_ids_.append(pl.id_proto());
+            if (pl.isPlaying()) {
+                active_playlist_id_ = pl.id_proto();
+                active_playlist_tab_index_ = idx;
+                has_active_playlist_ = true;
+            }
+            ++idx;
+        }
+        player_->SetPlaylists(playlist_names_, playlist_ids_, active_playlist_tab_index_);
+        if (has_active_playlist_) {
+            viewed_playlist_id_ = active_playlist_id_;
+            has_viewed_playlist_ = true;
+            msgOut_->RequestPlaylistSongs(active_playlist_id_, 25);
+        }
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_PLAYLIST_SONGS: {
+        const nw::remote::ResponsePlaylistSongs response = msg->responsePlaylistSongs();
+        if (has_viewed_playlist_ && response.playlistId() != viewed_playlist_id_) {
+            break;  // stale response for a playlist we've since navigated away from
+        }
+
+        QList<ColumnInfo> new_headers;
+        for (const nw::remote::ColumnInfo &col : response.columns()) {
+            ColumnInfo info;
+            info.name = col.name();
+            info.is_numeric = col.isNumeric();
+            new_headers.append(info);
+        }
+        if (new_headers != current_column_headers_) {
+            // Visible columns changed on the desktop mid-session: old cached
+            // rows would no longer line up against the new headers.
+            previous_rows_.clear();
+            current_column_headers_ = new_headers;
+        }
+
+        const QList<nw::remote::PlaylistSongRow> rows = response.rows();
+        QueueRowData new_current;
+        bool new_has_current = false;
+        QList<QueueRowData> new_upcoming;
+
+        if (!rows.isEmpty()) {
+            new_current.values = rows.first().values();
+            new_current.row_index = rows.first().rowIndex();
+            new_has_current = true;
+            for (int i = 1; i < rows.size(); ++i) {
+                QueueRowData r;
+                r.values = rows.at(i).values();
+                r.row_index = rows.at(i).rowIndex();
+                new_upcoming.append(r);
+            }
+        }
+
+        if (has_current_row_ && (!new_has_current || current_row_.values != new_current.values)) {
+            previous_rows_.append(current_row_);
+            while (previous_rows_.size() > kMaxPreviousRows) {
+                previous_rows_.removeFirst();
+            }
+        }
+
+        current_row_ = new_current;
+        has_current_row_ = new_has_current;
+        upcoming_rows_ = new_upcoming;
+        UpdateQueueDisplay();
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_PLAY_SONG: {
+        const nw::remote::ResponsePlaySong response = msg->responsePlaySong();
+        if (response.accepted() && has_viewed_playlist_) {
+            // Refreshes the queue view for whatever playlist we just played
+            // from. Note: this does not yet update playlist_ids_/active state
+            // if playing a previously-inactive playlist just made it active -
+            // that needs PLAYLIST_ACTIVATED handling, not yet wired up.
+            msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+        }
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_PLAYLIST_ACTIVATED: {
+        const nw::remote::PlaylistActivated activated = msg->playlistActivated();
+        active_playlist_id_ = activated.playlistId();
+        has_active_playlist_ = true;
+
+        const int idx = static_cast<int>(playlist_ids_.indexOf(active_playlist_id_));
+        active_playlist_tab_index_ = idx;
+        player_->SetPlaylists(playlist_names_, playlist_ids_, active_playlist_tab_index_);
+
+        // SetPlaylists() blocks signals while moving the tab selection, so
+        // PlaylistTabSelected() won't fire on its own here - follow the
+        // newly-active playlist explicitly.
+        viewed_playlist_id_ = active_playlist_id_;
+        has_viewed_playlist_ = true;
+        previous_rows_.clear();
+        current_row_ = QueueRowData();
+        has_current_row_ = false;
+        upcoming_rows_.clear();
+        current_column_headers_.clear();
+        UpdateQueueDisplay();
+        msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_PLAYLIST_CHANGED: {
+        const nw::remote::PlaylistChanged changed = msg->playlistChanged();
+        if (has_viewed_playlist_ && changed.playlistId() == viewed_playlist_id_) {
+            msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+        }
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_ADD_SONG_TO_PLAYLIST: {
+        const nw::remote::ResponseAddSongToPlaylist response = msg->responseAddSongToPlaylist();
+        if (!response.accepted()) {
+            ShowMessage("Failed to add song to playlist");
+        }
+        // On success, the server's PLAYLIST_CHANGED broadcast (for the
+        // target playlist) will refresh the view if we happen to be looking
+        // at it; no direct action needed here otherwise.
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_REMOVE_SONG_FROM_PLAYLIST: {
+        const nw::remote::ResponseRemoveSongFromPlaylist response = msg->responseRemoveSongFromPlaylist();
+        if (!response.accepted()) {
+            ShowMessage("Failed to remove song from playlist");
+        }
+        break;
+    }
     default:
         qInfo("Not sure what the MsgType is ");
         ShowMessage("Unexpected message from server");
@@ -305,4 +481,40 @@ void Controller::SocketDisconnected()
     if (!expecting_disconnect_) {
         ShowMessage("Connection to server lost");
     }
+}
+
+void Controller::PlaylistTabSelected(int index)
+{
+    if (index < 0 || index >= playlist_ids_.size()) return;
+
+    viewed_playlist_id_ = playlist_ids_.at(index);
+    has_viewed_playlist_ = true;
+
+    // Switching what we're browsing - local play history belongs to whatever
+    // we were previously watching, not the newly selected playlist.
+    previous_rows_.clear();
+    current_row_ = QueueRowData();
+    has_current_row_ = false;
+    upcoming_rows_.clear();
+    current_column_headers_.clear();
+    UpdateQueueDisplay();
+
+    msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+}
+
+void Controller::SongDoubleClicked(quint32 row_index)
+{
+    if (!has_viewed_playlist_) return;
+    msgOut_->RequestPlaySong(viewed_playlist_id_, row_index);
+}
+
+void Controller::AddCurrentSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name)
+{
+    msgOut_->RequestAddSongToPlaylist(target_playlist_id, new_playlist_name);
+}
+
+void Controller::RemoveSongFromPlaylist(quint32 row_index)
+{
+    if (!has_viewed_playlist_) return;
+    msgOut_->RequestRemoveSongFromPlaylist(viewed_playlist_id_, row_index);
 }

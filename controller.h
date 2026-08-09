@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
+#include <QList>
 #include <QTimer>
 #include <QTcpSocket>
 #include <QHostAddress>
@@ -36,6 +38,10 @@ public slots:
     void Ready();
     void ConnectionError();
     void SocketDisconnected();
+    void PlaylistTabSelected(int index);
+    void SongDoubleClicked(quint32 row_index);
+    void AddCurrentSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name);
+    void RemoveSongFromPlaylist(quint32 row_index);
 
 private:
     void MsgHandler();
@@ -46,6 +52,18 @@ private:
     // down locally once per second while the player is playing.
     void TickRemaining();
     void UpdateRemainingDisplay();
+    void UpdateQueueDisplay();
+
+    static constexpr int kMaxPreviousRows = 50;
+
+    QList<ColumnInfo> current_column_headers_;
+    QList<QueueRowData> previous_rows_;
+    QueueRowData current_row_;
+    bool has_current_row_ = false;
+    QList<QueueRowData> upcoming_rows_;
+
+    QStringList playlist_names_;
+    int active_playlist_tab_index_ = -1;
 
     Connection      *connection_   = nullptr;
     IncomingMsg     *msgIn_        = nullptr;
@@ -61,6 +79,11 @@ private:
     int port_ = 0;
     bool statusOk_ = false;
     bool expecting_disconnect_ = false;
+    quint32 active_playlist_id_ = 0;
+    bool has_active_playlist_ = false;
+    QList<quint32> playlist_ids_;        // parallel to playlist_names_, indexed the same
+    quint32 viewed_playlist_id_ = 0;
+    bool has_viewed_playlist_ = false;
 };
 
 #endif // CONTROLLER_H
