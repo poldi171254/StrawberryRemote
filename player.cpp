@@ -1,3 +1,21 @@
+/*
+ * Strawberry Music Player Client
+ * Copyright 2026, Leopold List <leo@zudiewiener.com>
+ *
+ * The client is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * The client is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *
+ */
+
+
 #include <QTableWidgetItem>
 #include <QHeaderView>
 #include <QFont>
@@ -5,6 +23,7 @@
 #include <QAction>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QMessageBox>
 #include "player.h"
 #include "ui_player.h"
 
@@ -125,6 +144,11 @@ void Player::SetQueue(const QList<ColumnInfo> &columns,
     }
 }
 
+void Player::SetPlaylistsMutable(bool mutable_allowed)
+{
+    playlists_mutable_ = mutable_allowed;
+}
+
 void Player::ShowQueueContextMenu(const QPoint &pos)
 {
     QTableWidgetItem *clicked_item = ui_->queueTable->itemAt(pos);
@@ -136,6 +160,12 @@ void Player::ShowQueueContextMenu(const QPoint &pos)
 
     const QVariant row_index_data = first_col_item->data(Qt::UserRole);
     if (!row_index_data.isValid()) return;  // history row - nothing actionable
+
+    if (!playlists_mutable_) {
+        QMessageBox::information(this, tr("Token Required"),
+                                 tr("Token verification is required for this feature."));
+        return;
+    }
 
     const bool is_current = first_col_item->data(Qt::UserRole + 1).toBool();
     const quint32 row_index = row_index_data.toUInt();

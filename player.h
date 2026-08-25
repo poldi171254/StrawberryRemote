@@ -1,3 +1,21 @@
+/*
+ * Strawberry Music Player Client
+ * Copyright 2026, Leopold List <leo@zudiewiener.com>
+ *
+ * The client is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * The client is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *
+ */
+
+
 #ifndef PLAYER_H
 #define PLAYER_H
 
@@ -53,6 +71,12 @@ public:
                   bool has_current_row,
                   const QList<QueueRowData> &upcoming_rows);
 
+    // Controls whether right-clicking a song offers the playlist-mutating
+    // context menu (Add to another playlist / Remove from playlist) or shows
+    // an explanatory message instead. Reflects Controller's current
+    // mutable-playlist state (auth not required, valid token, or bypassed).
+    void SetPlaylistsMutable(bool mutable_allowed);
+
 public slots:
     void Play();
     void Pause();
@@ -78,6 +102,7 @@ private slots:
 private:
     Ui::Player *ui_;
     QList<quint32> playlist_ids_;  // parallel to playlistTabBar's tabs
+    bool playlists_mutable_ = true;
 };
 
 #endif // PLAYER_H

@@ -37,6 +37,7 @@ add_executable(StrawberryRemote
         protocolconstants.h
         player.ui
         messagewindow.h messagewindow.cpp messagewindow.ui
+        tokenprompt.cpp tokenprompt.h tokenprompt.ui
 )
 
 target_link_libraries(StrawberryRemote

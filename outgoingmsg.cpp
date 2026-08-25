@@ -1,3 +1,21 @@
+/*
+ * Strawberry Music Player Client
+ * Copyright 2026, Leopold List <leo@zudiewiener.com>
+ *
+ * The client is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * The client is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *
+ */
+
+
 #include <QProtobufSerializer>
 #include "outgoingmsg.h"
 #include "protocolconstants.h"
@@ -136,7 +154,7 @@ void OutgoingMsg::RequestPlaySong(quint32 playlist_id, quint32 row_index)
     }
 }
 
-void OutgoingMsg::RequestAddSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name)
+void OutgoingMsg::RequestAddSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name, QString token)
 {
     msg_ = nw::remote::Message();
     msg_.setType(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_ADD_SONG_TO_PLAYLIST);
@@ -145,6 +163,7 @@ void OutgoingMsg::RequestAddSongToPlaylist(quint32 target_playlist_id, QString n
     nw::remote::RequestAddSongToPlaylist request;
     request.setTargetPlaylistId(target_playlist_id);
     request.setNewPlaylistName(new_playlist_name);
+    request.setToken(token);
     msg_.setRequestAddSongToPlaylist(request);
 
     QProtobufSerializer serializer;
@@ -177,7 +196,7 @@ void OutgoingMsg::RequestAddSongToPlaylist(quint32 target_playlist_id, QString n
     }
 }
 
-void OutgoingMsg::RequestRemoveSongFromPlaylist(quint32 playlist_id, quint32 row_index)
+void OutgoingMsg::RequestRemoveSongFromPlaylist(quint32 playlist_id, quint32 row_index, QString token)
 {
     msg_ = nw::remote::Message();
     msg_.setType(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_REMOVE_SONG_FROM_PLAYLIST);
@@ -186,6 +205,7 @@ void OutgoingMsg::RequestRemoveSongFromPlaylist(quint32 playlist_id, quint32 row
     nw::remote::RequestRemoveSongFromPlaylist request;
     request.setPlaylistId(playlist_id);
     request.setRowIndex(row_index);
+    request.setToken(token);
     msg_.setRequestRemoveSongFromPlaylist(request);
 
     QProtobufSerializer serializer;
@@ -289,6 +309,46 @@ void OutgoingMsg::Send(nw::remote::MsgTypeGadget::MsgType msg_type)
 
     const quint32 msg_len = static_cast<quint32>(payload.size());
 
+    QByteArray framed_data;
+    framed_data.reserve(4 + payload.size());
+    framed_data.append(static_cast<char>((msg_len >> 24) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 16) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 8) & 0xFF));
+    framed_data.append(static_cast<char>(msg_len & 0xFF));
+    framed_data.append(payload);
+
+    bytesOut_ = framed_data.size();
+
+    if (socket_ && socket_->isWritable()) {
+        socket_->write(framed_data);
+        qInfo() << bytesOut_ << " bytes written to socket " << socket_->socketDescriptor();
+        statusOk_ = true;
+    }
+    else {
+        statusOk_ = false;
+    }
+}
+
+void OutgoingMsg::RequestValidateToken(QString token)
+{
+    msg_ = nw::remote::Message();
+    msg_.setType(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_VALIDATE_TOKEN);
+    msg_.setVersion(ProtocolConstants::kProtocolVersion);
+
+    nw::remote::RequestValidateToken request;
+    request.setToken(token);
+    msg_.setRequestValidateToken(request);
+
+    QProtobufSerializer serializer;
+    QByteArray payload = serializer.serialize(&msg_);
+
+    if (serializer.lastError() != QAbstractProtobufSerializer::Error::None) {
+        qInfo() << "Failed to serialize message:" << serializer.lastErrorString();
+        statusOk_ = false;
+        return;
+    }
+
+    const quint32 msg_len = static_cast<quint32>(payload.size());
     QByteArray framed_data;
     framed_data.reserve(4 + payload.size());
     framed_data.append(static_cast<char>((msg_len >> 24) & 0xFF));

@@ -1,5 +1,24 @@
+/*
+ * Strawberry Music Player Client
+ * Copyright 2026, Leopold List <leo@zudiewiener.com>
+ *
+ * The client is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * The client is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *
+ */
+
 #include "controller.h"
 #include "RemoteMessages.qpb.h"
+#include <QCoreApplication>
+#include <QApplication>
 
 
 Controller::Controller(QObject *parent)
@@ -7,7 +26,8 @@ Controller::Controller(QObject *parent)
     connection_(new Connection(this)),
     msgIn_(new IncomingMsg(this)),
     msgOut_(new OutgoingMsg(this)),
-    player_(new Player)
+    player_(new Player),
+    tokenPrompt_(new TokenPrompt(player_))
 {
     QObject::connect(connection_, &Connection::ConnectionError, this, &Controller::ConnectionError);
     QObject::connect(msgIn_, &IncomingMsg::InMsgParsed, this, &Controller::IncomingMsgReceived);
@@ -23,6 +43,10 @@ Controller::Controller(QObject *parent)
     QObject::connect(player_, &Player::SongDoubleClicked, this, &Controller::SongDoubleClicked);
     QObject::connect(player_, &Player::AddCurrentSongToPlaylist, this, &Controller::AddCurrentSongToPlaylist);
     QObject::connect(player_, &Player::RemoveSongFromPlaylist, this, &Controller::RemoveSongFromPlaylist);
+    QObject::connect(tokenPrompt_, &TokenPrompt::TokenSubmitted, this, &Controller::TokenSubmitted);
+    QObject::connect(tokenPrompt_, &TokenPrompt::BypassRequested, this, &Controller::BypassRequested);
+    QObject::connect(tokenPrompt_, &TokenPrompt::CancelRequested, this, &Controller::TokenPromptCancelled);
+    QObject::connect(tokenPrompt_, &TokenPrompt::LockoutAcknowledged, this, &Controller::LockoutAcknowledged);
 }
 
 Controller::~Controller() = default;
@@ -80,6 +104,7 @@ void Controller::Continue()
 
 void Controller::MsgHandler()
 {
+    QApplication::setQuitOnLastWindowClosed(false);
     socket_ = connection_->GetSocket();
     msgIn_->Start(socket_);
     msgOut_->Start(socket_);
@@ -102,6 +127,23 @@ void Controller::ShowMessage(const QString &text)
     else {
         qInfo() << text;
     }
+}
+
+// Puts the client into "waiting on the user's auth decision" state: hides
+// player_ (if shown) and shows tokenPrompt_ in entry mode. Used identically
+// by the initial connect (auth_enabled == true) and a mid-session
+// AuthStatusChanged(true) - from the user's perspective these are the same
+// situation.
+void Controller::BeginAuthPrompt()
+{
+    mutable_state_ = PlaylistMutableState::Disabled;
+    token_.clear();
+    if (player_) {
+        player_->hide();
+        player_->SetPlaylistsMutable(false);
+    }
+    tokenPrompt_->ShowEntry();
+    tokenPrompt_->show();
 }
 
 // Formats remaining_seconds_ as m:ss and pushes it to the player window.
@@ -211,6 +253,22 @@ void Controller::IncomingMsgReceived()
         break;
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_DISCONNECT: {
         countdown_timer_->stop();
+
+        // Too-many-failed-attempts gets a dedicated lockout popup instead of
+        // the generic status message, since the client needs to quit once
+        // the user acknowledges it.
+        if (msg->requestDisconnect().reasonDisconnect() ==
+            nw::remote::ReasonDisconnectGadget::ReasonDisconnect::REASON_DISCONNECT_TOO_MANY_FAILED_ATTEMPTS) {
+            qInfo() << "Disconnected: too many failed token attempts";
+            expecting_disconnect_ = true;
+            if (player_) {
+                player_->hide();
+            }
+            tokenPrompt_->ShowLockout();
+            tokenPrompt_->show();
+            break;
+        }
+
         QString reason_text;
         switch (msg->requestDisconnect().reasonDisconnect()) {
         case nw::remote::ReasonDisconnectGadget::ReasonDisconnect::REASON_DISCONNECT_VERSION_MISMATCH:
@@ -234,12 +292,20 @@ void Controller::IncomingMsgReceived()
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_CONNECT:
         if (msg->responseConnect().accepted()) {
             qInfo() << "Handshake accepted, server protocol version" << msg->version();
+            auth_enabled_ = msg->responseConnect().authEnabled();
             if (statusWindow_) {
                 statusWindow_->close();
             }
-            player_->activateWindow();
-            player_->show();
-            msgOut_->RequestInitialInfo();
+            if (auth_enabled_) {
+                BeginAuthPrompt();
+            }
+            else {
+                mutable_state_ = PlaylistMutableState::Enabled;
+                player_->SetPlaylistsMutable(true);
+                player_->show();
+                player_->activateWindow();
+                msgOut_->RequestInitialInfo();
+            }
         }
         else {
             expecting_disconnect_ = true;
@@ -400,6 +466,12 @@ void Controller::IncomingMsgReceived()
         break;
     }
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_ADD_SONG_TO_PLAYLIST: {
+        // Normal path: AddCurrentSongToPlaylist() already checks
+        // mutable_state_ before ever sending this request, so a rejection
+        // here means server-side state diverged from what the client
+        // believed (e.g. a race with AuthStatusChanged). Left as a plain
+        // fallback message - the proactive RequestValidateToken/
+        // AuthStatusChanged flow is what normally keeps this from firing.
         const nw::remote::ResponseAddSongToPlaylist response = msg->responseAddSongToPlaylist();
         if (!response.accepted()) {
             ShowMessage("Failed to add song to playlist");
@@ -413,6 +485,51 @@ void Controller::IncomingMsgReceived()
         const nw::remote::ResponseRemoveSongFromPlaylist response = msg->responseRemoveSongFromPlaylist();
         if (!response.accepted()) {
             ShowMessage("Failed to remove song from playlist");
+        }
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_VALIDATE_TOKEN: {
+        const nw::remote::ResponseValidateToken response = msg->responseValidateToken();
+        if (response.valid()) {
+            mutable_state_ = PlaylistMutableState::Enabled;
+            player_->SetPlaylistsMutable(true);
+            tokenPrompt_->close();
+            player_->show();
+            player_->activateWindow();
+            msgOut_->RequestInitialInfo();
+        }
+        else {
+            // token_ was only tentatively held by TokenSubmitted(); an
+            // invalid token must not be reused for subsequent requests.
+            token_.clear();
+            tokenPrompt_->ShowInvalid();
+            tokenPrompt_->show();
+        }
+        break;
+    }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_AUTH_STATUS_CHANGED: {
+        const nw::remote::AuthStatusChanged changed = msg->authStatusChanged();
+        auth_enabled_ = changed.authEnabled();
+        if (auth_enabled_) {
+            // Auth turned on mid-session: same treatment as connect-time -
+            // withdraw the player and make the user decide.
+            BeginAuthPrompt();
+        }
+        else {
+            // Auth turned off mid-session: no user input needed, handle
+            // silently. If tokenPrompt_ happened to be up (mid-decision when
+            // the server disabled auth under us), dismiss it.
+            mutable_state_ = PlaylistMutableState::Enabled;
+            token_.clear();
+            tokenPrompt_->close();
+            if (player_) {
+                player_->SetPlaylistsMutable(true);
+                if (!player_->isVisible()) {
+                    player_->show();
+                    player_->activateWindow();
+                    msgOut_->RequestInitialInfo();
+                }
+            }
         }
         break;
     }
@@ -455,6 +572,7 @@ void Controller::Finish()
     expecting_disconnect_ = true;
     countdown_timer_->stop();
     msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_FINISH);
+    token_.clear();
     if (player_) {
         player_->deleteLater();
         player_ = nullptr;
@@ -476,6 +594,7 @@ void Controller::SocketDisconnected()
 {
     qInfo("Socket disconnected");
     countdown_timer_->stop();
+    token_.clear();
     // If the server already told us why (rejection, shutdown) or we asked to
     // leave, keep that message rather than overwriting it with a generic one.
     if (!expecting_disconnect_) {
@@ -510,11 +629,49 @@ void Controller::SongDoubleClicked(quint32 row_index)
 
 void Controller::AddCurrentSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name)
 {
-    msgOut_->RequestAddSongToPlaylist(target_playlist_id, new_playlist_name);
+    if (mutable_state_ != PlaylistMutableState::Enabled) {
+        ShowMessage("This feature is only available with a valid token");
+        return;
+    }
+    msgOut_->RequestAddSongToPlaylist(target_playlist_id, new_playlist_name, token_);
 }
 
 void Controller::RemoveSongFromPlaylist(quint32 row_index)
 {
     if (!has_viewed_playlist_) return;
-    msgOut_->RequestRemoveSongFromPlaylist(viewed_playlist_id_, row_index);
+    if (mutable_state_ != PlaylistMutableState::Enabled) {
+        ShowMessage("This feature is only available with a valid token");
+        return;
+    }
+    msgOut_->RequestRemoveSongFromPlaylist(viewed_playlist_id_, row_index, token_);
+}
+
+void Controller::TokenSubmitted(QString token)
+{
+    // Tentatively held; MSG_TYPE_RESPONSE_VALIDATE_TOKEN confirms or clears it.
+    token_ = token;
+    msgOut_->RequestValidateToken(token);
+}
+
+void Controller::BypassRequested()
+{
+    mutable_state_ = PlaylistMutableState::Bypassed;
+    token_.clear();
+    tokenPrompt_->close();
+    if (player_) {
+        player_->SetPlaylistsMutable(false);
+        player_->show();
+        player_->activateWindow();
+        msgOut_->RequestInitialInfo();
+    }
+}
+
+void Controller::TokenPromptCancelled()
+{
+    QCoreApplication::quit();
+}
+
+void Controller::LockoutAcknowledged()
+{
+    QCoreApplication::quit();
 }
