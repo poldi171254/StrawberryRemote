@@ -1,0 +1,13 @@
+Package: strawberry-remote-dbgsym
+Package-Type: ddeb
+Source: strawberry-remote
+Version: 1.0.0-1
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: Leopold List <leo@zudiewiener.com>
+Installed-Size: 6327
+Depends: strawberry-remote (= 1.0.0-1)
+Section: debug
+Priority: optional
+Description: debug symbols for strawberry-remote
+Build-Ids: 89d67622ba0e5d69d217f01ae62bb84a72a0d2c4

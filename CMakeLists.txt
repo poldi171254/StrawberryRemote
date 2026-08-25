@@ -12,6 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Widgets Core Network Protobuf)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Core Network Protobuf)
 
+add_library(RemoteMessages STATIC)
+
 qt_add_protobuf(RemoteMessages
   PROTO_FILES RemoteMessages.proto
 )

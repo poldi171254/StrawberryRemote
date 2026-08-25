@@ -1,0 +1,23 @@
+Source: strawberry-remote
+Section: sound
+Priority: optional
+Maintainer: Leopold List <leo@zudiewiener.com>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               qt6-base-dev,
+               qt6-grpc-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/llist/strawberryRemoteV3
+Rules-Requires-Root: no
+
+Package: strawberry-remote
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Qt remote control client for Strawberry Music Player
+ StrawberryRemote is a Qt6-based desktop client that connects to
+ Strawberry Music Player's network remote feature over TCP, allowing
+ playback control and playlist management from another machine on the
+ local network.
+ .
+ Supports optional token-based authentication when enabled on the
+ Strawberry server.

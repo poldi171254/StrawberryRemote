@@ -1,0 +1,5 @@
+strawberry-remote (1.0.0-1) unstable; urgency=medium
+
+  * Initial Debian packaging.
+
+ -- Leopold List <leo@zudiewiener.com>  Tue, 25 Aug 2026 01:45:43 +0000

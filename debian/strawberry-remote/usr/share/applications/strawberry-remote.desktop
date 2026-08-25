@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Strawberry Remote
+Comment=Remote control client for Strawberry Music Player
+Exec=StrawberryRemote
+Icon=multimedia-player
+Terminal=false
+Categories=AudioVideo;Audio;Player;Qt;
+StartupNotify=true

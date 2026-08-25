@@ -1,0 +1,3 @@
+strawberry-remote-dbgsym_1.0.0-1_amd64.ddeb debug optional architecture=amd64 automatic=yes
+strawberry-remote_1.0.0-1_amd64.buildinfo sound optional
+strawberry-remote_1.0.0-1_amd64.deb sound optional architecture=amd64
