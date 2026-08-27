@@ -50,6 +50,7 @@ Player::Player(QWidget *parent)
     });
 
     ui_->queueTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    ui_->queueTable->verticalHeader()->setVisible(false);
     QWidget::connect(ui_->queueTable, &QTableWidget::customContextMenuRequested, this, &Player::ShowQueueContextMenu);
 }
 

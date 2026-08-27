@@ -64,6 +64,9 @@ enum MsgType {
 
     // If token status chages
     MSG_TYPE_AUTH_STATUS_CHANGED = 33;
+
+    // Handle next song in playlist
+    MSG_TYPE_PLAYLIST_ADVANCED = 34;
 }
 
 enum PlayerState {
@@ -276,6 +279,12 @@ message AuthStatusChanged {
     bool auth_enabled = 1;
 }
 
+message PlaylistAdvanced {
+    uint32 playlist_id = 1;
+    uint32 new_current_row = 2;
+    PlaylistSongRow trailing_row = 3;
+}
+
 message Message {
     MsgType type = 1;
     uint32 version = 15;
@@ -310,5 +319,6 @@ message Message {
         RequestValidateToken request_validate_token = 30;
         ResponseValidateToken response_validate_token = 31;
         AuthStatusChanged auth_status_changed = 32;
+        PlaylistAdvanced playlist_advanced = 33;
     }
 }

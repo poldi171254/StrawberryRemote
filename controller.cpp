@@ -465,6 +465,51 @@ void Controller::IncomingMsgReceived()
         }
         break;
     }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_PLAYLIST_ADVANCED: {
+        const nw::remote::PlaylistAdvanced advanced = msg->playlistAdvanced();
+        if (!has_viewed_playlist_ || advanced.playlistId() != viewed_playlist_id_) {
+            break;  // not the playlist we're currently displaying
+        }
+
+        // Find new_current_row among the current upcoming rows - it should
+        // already be cached there from the last full resend.
+        int found_index = -1;
+        for (int i = 0; i < upcoming_rows_.size(); ++i) {
+            if (upcoming_rows_.at(i).row_index == advanced.newCurrentRow()) {
+                found_index = i;
+                break;
+            }
+        }
+        if (found_index < 0) {
+            // Cache didn't have it (e.g. a resend was missed) - fall back to
+            // asking the server directly rather than guessing.
+            msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+            break;
+        }
+
+        if (has_current_row_) {
+            previous_rows_.append(current_row_);
+            while (previous_rows_.size() > kMaxPreviousRows) {
+                previous_rows_.removeFirst();
+            }
+        }
+
+        current_row_ = upcoming_rows_.at(found_index);
+        has_current_row_ = true;
+        upcoming_rows_.remove(found_index);
+
+        if (advanced.hasTrailingRow()) {
+            QueueRowData trailing;
+            trailing.values = advanced.trailingRow().values();
+            trailing.row_index = advanced.trailingRow().rowIndex();
+            upcoming_rows_.append(trailing);
+        }
+        // If no trailing row, upcoming_rows_ is simply one shorter now -
+        // no further action needed (happens near the end of the playlist).
+
+        UpdateQueueDisplay();
+        break;
+    }
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_ADD_SONG_TO_PLAYLIST: {
         // Normal path: AddCurrentSongToPlaylist() already checks
         // mutable_state_ before ever sending this request, so a rejection
