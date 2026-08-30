@@ -236,10 +236,8 @@ void Controller::IncomingMsgReceived()
             player_->SetMessage("Playing");
             // The reply to this restarts the countdown with a fresh position.
             msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO);
-            // The current/upcoming rows may have shifted; refresh the queue too.
-            if (has_viewed_playlist_&& has_active_playlist_ && viewed_playlist_id_ == active_playlist_id_) {
-                msgOut_->RequestPlaylistSongs(active_playlist_id_, 25);
-            }
+            // Natural song-advance is now handled by the server pushing
+            // MSG_TYPE_PLAYLIST_ADVANCED - no request needed here.
             break;
         case nw::remote::EngineStateGadget::EngineState::ENGINE_STATE_PAUSED:
             player_->SetMessage("Paused");
@@ -359,7 +357,7 @@ void Controller::IncomingMsgReceived()
         for (const nw::remote::PlaylistInfo &pl : playlists_response.playlists()) {
             playlist_names_.append(pl.name());
             playlist_ids_.append(pl.id_proto());
-            if (pl.isPlaying()) {
+            if (pl.isCurrent()) {
                 active_playlist_id_ = pl.id_proto();
                 active_playlist_tab_index_ = idx;
                 has_active_playlist_ = true;
@@ -370,7 +368,7 @@ void Controller::IncomingMsgReceived()
         if (has_active_playlist_) {
             viewed_playlist_id_ = active_playlist_id_;
             has_viewed_playlist_ = true;
-            msgOut_->RequestPlaylistSongs(active_playlist_id_, 25);
+            msgOut_->RequestPlaylistSongs(active_playlist_id_);
         }
         break;
     }
@@ -426,13 +424,11 @@ void Controller::IncomingMsgReceived()
     }
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_PLAY_SONG: {
         const nw::remote::ResponsePlaySong response = msg->responsePlaySong();
-        if (response.accepted() && has_viewed_playlist_) {
-            // Refreshes the queue view for whatever playlist we just played
-            // from. Note: this does not yet update playlist_ids_/active state
-            // if playing a previously-inactive playlist just made it active -
-            // that needs PLAYLIST_ACTIVATED handling, not yet wired up.
-            msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
-        }
+        Q_UNUSED(response);
+        // Jump-to-song is human-initiated: the server auto-pushes a full
+        // ResponsePlaylistSongs resend for the affected playlist (and
+        // PLAYLIST_ACTIVATED too, if this switched the active playlist) -
+        // no request needed here.
         break;
     }
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_PLAYLIST_ACTIVATED: {
@@ -455,13 +451,15 @@ void Controller::IncomingMsgReceived()
         upcoming_rows_.clear();
         current_column_headers_.clear();
         UpdateQueueDisplay();
-        msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+        // The server auto-pushes a full ResponsePlaylistSongs resend for the
+        // newly-active playlist alongside PLAYLIST_ACTIVATED - no request
+        // needed here.
         break;
     }
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_PLAYLIST_CHANGED: {
         const nw::remote::PlaylistChanged changed = msg->playlistChanged();
         if (has_viewed_playlist_ && changed.playlistId() == viewed_playlist_id_) {
-            msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+            msgOut_->RequestPlaylistSongs(viewed_playlist_id_);
         }
         break;
     }
@@ -483,7 +481,7 @@ void Controller::IncomingMsgReceived()
         if (found_index < 0) {
             // Cache didn't have it (e.g. a resend was missed) - fall back to
             // asking the server directly rather than guessing.
-            msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+            msgOut_->RequestPlaylistSongs(viewed_playlist_id_);
             break;
         }
 
@@ -663,7 +661,7 @@ void Controller::PlaylistTabSelected(int index)
     current_column_headers_.clear();
     UpdateQueueDisplay();
 
-    msgOut_->RequestPlaylistSongs(viewed_playlist_id_, 25);
+    msgOut_->RequestPlaylistSongs(viewed_playlist_id_);
 }
 
 void Controller::SongDoubleClicked(quint32 row_index)
