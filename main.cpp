@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
     QString ipAddr_;
     int port_;
     QApplication a(argc, argv);
+    QGuiApplication::setDesktopFileName("strawberry-remote");
     MainWindow w;
     w.Init();
     w.show();
