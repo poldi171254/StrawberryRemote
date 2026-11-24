@@ -1,3 +1,11 @@
+strawberry-remote (1.1.0-1) unstable; urgency=medium
+
+  * Add seek slider (server protocol version 6).
+  * Add server-controlled volume slider, shown only when the server has
+    volume control enabled.
+
+ -- Leopold List <leo@zudiewiener.com>  Tue, 24 Nov 2026 04:56:58 +0000
+
 strawberry-remote (1.0.0-1) unstable; urgency=medium
 
   * Initial Debian packaging.

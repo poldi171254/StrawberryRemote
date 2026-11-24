@@ -24,7 +24,7 @@
 namespace ProtocolConstants {
 
 // Must match the server's NetworkRemoteConstants::kProtocolVersion.
-constexpr quint32 kProtocolVersion = 5;
+constexpr quint32 kProtocolVersion = 6;
 
 }  // namespace ProtocolConstants
 

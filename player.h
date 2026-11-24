@@ -1,21 +1,3 @@
-/*
- * Strawberry Music Player Client
- * Copyright 2026, Leopold List <leo@zudiewiener.com>
- *
- * The client is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * The client is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
- */
-
-
 #ifndef PLAYER_H
 #define PLAYER_H
 
@@ -23,6 +5,8 @@
 #include <QStringList>
 #include <QList>
 #include <QPoint>
+#include <QEvent>
+#include <QElapsedTimer>
 
 namespace Ui {
 class Player;
@@ -77,6 +61,19 @@ public:
     // mutable-playlist state (auth not required, valid token, or bypassed).
     void SetPlaylistsMutable(bool mutable_allowed);
 
+    // Seek slider. length_seconds is the song length; the slider range becomes
+    // 0..length-1 and the slider is enabled only if `enabled` and length > 0.
+    void SetSeekRange(quint32 length_seconds, bool enabled);
+    // Elapsed seconds, pushed by the controller. Ignored while the handle is held.
+    void SetSeekPosition(quint32 elapsed_seconds);
+
+    // Volume slider (server-controlled). The row is hidden unless the server
+    // says volume control is enabled.
+    void SetVolumeControlEnabled(bool enabled);
+    // 0..100, from the server. Ignored while the handle is held and for a short
+    // time after release (echoes of our own requests). Never emits VolumeRequested.
+    void SetVolume(quint32 volume);
+
 public slots:
     void Play();
     void Pause();
@@ -95,14 +92,27 @@ signals:
     // target_playlist_id is ignored by the server when new_playlist_name is non-empty.
     void AddCurrentSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name);
     void RemoveSongFromPlaylist(quint32 row_index);
+    // Emitted once, on release, only if the handle ended somewhere other than
+    // where the controller last put it.
+    void SeekRequested(quint32 position_seconds);
+    // Throttled to about one per 100 ms while dragging; always emitted on release.
+    void VolumeRequested(quint32 volume);
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void ShowQueueContextMenu(const QPoint &pos);
+    void ShowDragRemaining(int value);
 
 private:
     Ui::Player *ui_;
     QList<quint32> playlist_ids_;  // parallel to playlistTabBar's tabs
     bool playlists_mutable_ = true;
+    quint32 seek_length_ = 0;
+    int seek_reference_ = 0;  // last position pushed by the controller
+    QElapsedTimer volume_send_timer_;     // time since the last volume request while dragging
+    QElapsedTimer volume_release_timer_;  // time since the volume handle was released
 };
 
 #endif // PLAYER_H

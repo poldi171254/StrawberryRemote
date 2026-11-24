@@ -349,3 +349,83 @@ void OutgoingMsg::Send(nw::remote::MsgTypeGadget::MsgType msg_type)
         statusOk_ = false;
     }
 }
+
+void OutgoingMsg::RequestSeek(quint32 position_seconds)
+{
+    msg_ = nw::remote::Message();
+    msg_.setType(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SEEK);
+    msg_.setVersion(ProtocolConstants::kProtocolVersion);
+
+    nw::remote::RequestSeek request;
+    request.setPositionSeconds(position_seconds);
+    msg_.setRequestSeek(request);
+
+    QProtobufSerializer serializer;
+    QByteArray payload = serializer.serialize(&msg_);
+
+    if (serializer.lastError() != QAbstractProtobufSerializer::Error::None) {
+        qInfo() << "Failed to serialize message:" << serializer.lastErrorString();
+        statusOk_ = false;
+        return;
+    }
+
+    const quint32 msg_len = static_cast<quint32>(payload.size());
+    QByteArray framed_data;
+    framed_data.reserve(4 + payload.size());
+    framed_data.append(static_cast<char>((msg_len >> 24) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 16) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 8) & 0xFF));
+    framed_data.append(static_cast<char>(msg_len & 0xFF));
+    framed_data.append(payload);
+
+    bytesOut_ = framed_data.size();
+
+    if (socket_ && socket_->isWritable()) {
+        socket_->write(framed_data);
+        qInfo() << bytesOut_ << " bytes written to socket " << socket_->socketDescriptor();
+        statusOk_ = true;
+    }
+    else {
+        statusOk_ = false;
+    }
+}
+
+void OutgoingMsg::RequestSetVolume(quint32 volume)
+{
+    msg_ = nw::remote::Message();
+    msg_.setType(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SET_VOLUME);
+    msg_.setVersion(ProtocolConstants::kProtocolVersion);
+
+    nw::remote::RequestSetVolume request;
+    request.setVolume(volume);
+    msg_.setRequestSetVolume(request);
+
+    QProtobufSerializer serializer;
+    QByteArray payload = serializer.serialize(&msg_);
+
+    if (serializer.lastError() != QAbstractProtobufSerializer::Error::None) {
+        qInfo() << "Failed to serialize message:" << serializer.lastErrorString();
+        statusOk_ = false;
+        return;
+    }
+
+    const quint32 msg_len = static_cast<quint32>(payload.size());
+    QByteArray framed_data;
+    framed_data.reserve(4 + payload.size());
+    framed_data.append(static_cast<char>((msg_len >> 24) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 16) & 0xFF));
+    framed_data.append(static_cast<char>((msg_len >> 8) & 0xFF));
+    framed_data.append(static_cast<char>(msg_len & 0xFF));
+    framed_data.append(payload);
+
+    bytesOut_ = framed_data.size();
+
+    if (socket_ && socket_->isWritable()) {
+        socket_->write(framed_data);
+        qInfo() << bytesOut_ << " bytes written to socket " << socket_->socketDescriptor();
+        statusOk_ = true;
+    }
+    else {
+        statusOk_ = false;
+    }
+}

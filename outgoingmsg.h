@@ -28,6 +28,8 @@ public:
     void RequestAddSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name, QString token);
     void RequestRemoveSongFromPlaylist(quint32 playlist_id, quint32 row_index, QString token);
     void RequestValidateToken(QString token);
+    void RequestSeek(quint32 position_seconds);
+    void RequestSetVolume(quint32 volume);
 
 private:
 

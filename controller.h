@@ -61,6 +61,8 @@ public slots:
     void SongDoubleClicked(quint32 row_index);
     void AddCurrentSongToPlaylist(quint32 target_playlist_id, QString new_playlist_name);
     void RemoveSongFromPlaylist(quint32 row_index);
+    void SeekRequested(quint32 position_seconds);
+    void VolumeRequested(quint32 volume);
 
     // TokenPrompt signal handlers
     void TokenSubmitted(QString token);
@@ -79,6 +81,11 @@ private:
     void UpdateRemainingDisplay();
     void UpdateQueueDisplay();
 
+    // Shared handling of a ResponseSongMetadata (REPLY_SONG_INFO and
+    // RESPONSE_INITIAL_INFO): stores length and state, resyncs the
+    // countdown, starts/stops the timer and refreshes the displays.
+    void ApplySongInfo(const nw::remote::ResponseSongMetadata &response);
+
     // Puts the client into "waiting on the user's auth decision" state:
     // hides player_ (if shown) and shows tokenPrompt_ in entry mode. Used by
     // both the initial connect and a mid-session AuthStatusChanged(true).
@@ -92,6 +99,10 @@ private:
     // Bypassed: user chose to skip authentication; mutating attempts are
     // intercepted client-side with an explanatory message.
     enum class PlaylistMutableState { Disabled, Enabled, Bypassed };
+
+    // Last player state we know of, used to enable the seek slider and to
+    // decide whether a seek must be followed by a play request.
+    enum class SongState { Stopped, Playing, Paused };
 
     QList<ColumnInfo> current_column_headers_;
     QList<QueueRowData> previous_rows_;
@@ -112,6 +123,8 @@ private:
 
     QTimer *countdown_timer_ = nullptr;
     int remaining_seconds_ = 0;
+    int length_seconds_ = 0;
+    SongState last_state_ = SongState::Stopped;
 
     QString ipAddr_;
     int port_ = 0;
@@ -125,6 +138,7 @@ private:
 
     QString token_;
     bool auth_enabled_ = false;
+    bool volume_control_enabled_ = false;   // server setting; slider is hidden when false
     PlaylistMutableState mutable_state_ = PlaylistMutableState::Enabled;
 };
 

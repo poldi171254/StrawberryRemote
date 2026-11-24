@@ -24,8 +24,38 @@
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QSlider>
+#include <QProxyStyle>
+#include <QStyleFactory>
+#include <QSignalBlocker>
 #include "player.h"
 #include "ui_player.h"
+
+namespace {
+// Minimum gap between volume requests while the handle is being dragged.
+constexpr int kVolumeSendIntervalMs = 100;
+// After releasing the volume handle, ignore volume changes from the server for
+// this long: they are echoes of our own requests.
+constexpr int kVolumeEchoIgnoreMs = 250;
+}
+
+// Makes a left click on the slider groove jump the handle to that spot and
+// continue as a normal press/drag/release, instead of moving by a page step.
+class SeekSliderStyle : public QProxyStyle
+{
+public:
+    explicit SeekSliderStyle(QStyle *base) : QProxyStyle(base) {}
+
+    int styleHint(StyleHint hint, const QStyleOption *option = nullptr,
+                  const QWidget *widget = nullptr,
+                  QStyleHintReturn *returnData = nullptr) const override
+    {
+        if (hint == SH_Slider_AbsoluteSetButtons) {
+            return Qt::LeftButton;
+        }
+        return QProxyStyle::styleHint(hint, option, widget, returnData);
+    }
+};
 
 Player::Player(QWidget *parent)
     : QDialog(parent)
@@ -50,8 +80,43 @@ Player::Player(QWidget *parent)
     });
 
     ui_->queueTable->setContextMenuPolicy(Qt::CustomContextMenu);
-    ui_->queueTable->verticalHeader()->setVisible(false);
     QWidget::connect(ui_->queueTable, &QTableWidget::customContextMenuRequested, this, &Player::ShowQueueContextMenu);
+
+    // Seek slider: click-to-jump, no keyboard, no wheel.
+    QStyle *seek_style = new SeekSliderStyle(QStyleFactory::create(ui_->seekSlider->style()->name()));
+    seek_style->setParent(ui_->seekSlider);   // QSlider::setStyle does not take ownership
+    ui_->seekSlider->setStyle(seek_style);
+    ui_->seekSlider->installEventFilter(this);
+
+    QWidget::connect(ui_->seekSlider, &QSlider::sliderPressed, this, [this]() {
+        ShowDragRemaining(ui_->seekSlider->value());
+    });
+    QWidget::connect(ui_->seekSlider, &QSlider::sliderMoved, this, &Player::ShowDragRemaining);
+    QWidget::connect(ui_->seekSlider, &QSlider::sliderReleased, this, [this]() {
+        const int value = ui_->seekSlider->value();
+        if (value != seek_reference_) {
+            emit SeekRequested(static_cast<quint32>(value));
+        }
+    });
+
+    // Volume slider: same input treatment as the seek slider (click-to-jump,
+    // no keyboard, no wheel). While dragging, at most one request per
+    // kVolumeSendIntervalMs; the release always sends the final value.
+    QStyle *volume_style = new SeekSliderStyle(QStyleFactory::create(ui_->volumeSlider->style()->name()));
+    volume_style->setParent(ui_->volumeSlider);
+    ui_->volumeSlider->setStyle(volume_style);
+    ui_->volumeSlider->installEventFilter(this);
+
+    QWidget::connect(ui_->volumeSlider, &QSlider::sliderMoved, this, [this](int value) {
+        if (!volume_send_timer_.isValid() || volume_send_timer_.elapsed() >= kVolumeSendIntervalMs) {
+            volume_send_timer_.start();
+            emit VolumeRequested(static_cast<quint32>(value));
+        }
+    });
+    QWidget::connect(ui_->volumeSlider, &QSlider::sliderReleased, this, [this]() {
+        volume_release_timer_.start();
+        emit VolumeRequested(static_cast<quint32>(ui_->volumeSlider->value()));
+    });
 }
 
 Player::~Player()
@@ -61,6 +126,7 @@ Player::~Player()
 
 void Player::SetRemaining(QString remaining)
 {
+    if (ui_->seekSlider->isSliderDown()) return;   // drag target is shown instead
     ui_->songlengthremaining->setText(remaining);
 }
 
@@ -148,6 +214,52 @@ void Player::SetQueue(const QList<ColumnInfo> &columns,
 void Player::SetPlaylistsMutable(bool mutable_allowed)
 {
     playlists_mutable_ = mutable_allowed;
+}
+
+void Player::SetSeekRange(quint32 length_seconds, bool enabled)
+{
+    seek_length_ = length_seconds;
+    ui_->seekSlider->setRange(0, length_seconds > 0 ? static_cast<int>(length_seconds) - 1 : 0);
+    ui_->seekSlider->setEnabled(enabled && length_seconds > 0);
+}
+
+void Player::SetSeekPosition(quint32 elapsed_seconds)
+{
+    if (ui_->seekSlider->isSliderDown()) return;
+    const int value = qMin(static_cast<int>(elapsed_seconds), ui_->seekSlider->maximum());
+    seek_reference_ = value;
+    ui_->seekSlider->setValue(value);
+}
+
+void Player::SetVolumeControlEnabled(bool enabled)
+{
+    ui_->volumeRow->setVisible(enabled);
+}
+
+void Player::SetVolume(quint32 volume)
+{
+    if (ui_->volumeSlider->isSliderDown()) return;
+    if (volume_release_timer_.isValid() && volume_release_timer_.elapsed() < kVolumeEchoIgnoreMs) return;
+
+    const QSignalBlocker blocker(ui_->volumeSlider);   // programmatic: must not send a request
+    ui_->volumeSlider->setValue(qMin(static_cast<int>(volume), ui_->volumeSlider->maximum()));
+}
+
+void Player::ShowDragRemaining(int value)
+{
+    const int remaining = qMax(0, static_cast<int>(seek_length_) - value);
+    ui_->songlengthremaining->setText(QString("%1:%2")
+                                          .arg(remaining / 60)
+                                          .arg(remaining % 60, 2, 10, QChar('0')));
+}
+
+bool Player::eventFilter(QObject *watched, QEvent *event)
+{
+    // The wheel would move a handle without a release, so the change would not be sent.
+    if ((watched == ui_->seekSlider || watched == ui_->volumeSlider) && event->type() == QEvent::Wheel) {
+        return true;
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 void Player::ShowQueueContextMenu(const QPoint &pos)

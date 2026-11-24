@@ -43,6 +43,8 @@ Controller::Controller(QObject *parent)
     QObject::connect(player_, &Player::SongDoubleClicked, this, &Controller::SongDoubleClicked);
     QObject::connect(player_, &Player::AddCurrentSongToPlaylist, this, &Controller::AddCurrentSongToPlaylist);
     QObject::connect(player_, &Player::RemoveSongFromPlaylist, this, &Controller::RemoveSongFromPlaylist);
+    QObject::connect(player_, &Player::SeekRequested, this, &Controller::SeekRequested);
+    QObject::connect(player_, &Player::VolumeRequested, this, &Controller::VolumeRequested);
     QObject::connect(tokenPrompt_, &TokenPrompt::TokenSubmitted, this, &Controller::TokenSubmitted);
     QObject::connect(tokenPrompt_, &TokenPrompt::BypassRequested, this, &Controller::BypassRequested);
     QObject::connect(tokenPrompt_, &TokenPrompt::CancelRequested, this, &Controller::TokenPromptCancelled);
@@ -159,6 +161,59 @@ void Controller::UpdateRemainingDisplay()
     else {
         player_->SetRemaining("0:00");
     }
+
+    // Seek slider: enabled only while playing or paused with a known length.
+    const bool seekable = (last_state_ == SongState::Playing || last_state_ == SongState::Paused);
+    player_->SetSeekRange(static_cast<quint32>(length_seconds_), seekable);
+    const int elapsed = (length_seconds_ > remaining_seconds_) ? (length_seconds_ - remaining_seconds_) : 0;
+    player_->SetSeekPosition(static_cast<quint32>(elapsed));
+}
+
+// Shared by REPLY_SONG_INFO and RESPONSE_INITIAL_INFO.
+void Controller::ApplySongInfo(const nw::remote::ResponseSongMetadata &response)
+{
+    // Resync the countdown from the server's authoritative position.
+    const quint32 length_seconds = response.lengthSeconds();
+    const quint32 position_seconds = response.positionSeconds();
+    length_seconds_ = static_cast<int>(length_seconds);
+    remaining_seconds_ = (length_seconds > position_seconds)
+                             ? static_cast<int>(length_seconds - position_seconds)
+                             : 0;
+
+    switch (response.playerState()) {
+    case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PLAYING:
+        last_state_ = SongState::Playing;
+        player_->SetMessage("Playing");
+        if (remaining_seconds_ > 0) {
+            countdown_timer_->start();
+        }
+        break;
+    case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PAUSED:
+        last_state_ = SongState::Paused;
+        player_->SetMessage("Paused");
+        countdown_timer_->stop();
+        break;
+    case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_IDLE:
+        last_state_ = SongState::Stopped;
+        player_->SetMessage("Idle");
+        countdown_timer_->stop();
+        break;
+    case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_ERROR:
+        last_state_ = SongState::Stopped;
+        player_->SetMessage("Error");
+        countdown_timer_->stop();
+        break;
+    case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_EMPTY:
+    default:
+        last_state_ = SongState::Stopped;
+        player_->SetMessage("No song selected");
+        countdown_timer_->stop();
+        remaining_seconds_ = 0;
+        length_seconds_ = 0;
+        break;
+    }
+
+    UpdateRemainingDisplay();
 }
 
 // Called once per second while the track is playing.
@@ -191,61 +246,31 @@ void Controller::IncomingMsgReceived()
 
     switch (msg->type()) {
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REPLY_SONG_INFO: {
-        const nw::remote::ResponseSongMetadata response = msg->responseSongMetadata();
-
-        // Resync the countdown from the server's authoritative position.
-        const quint32 length_seconds = response.lengthSeconds();
-        const quint32 position_seconds = response.positionSeconds();
-        remaining_seconds_ = (length_seconds > position_seconds)
-                                 ? static_cast<int>(length_seconds - position_seconds)
-                                 : 0;
-        UpdateRemainingDisplay();
-
-        switch (response.playerState()) {
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PLAYING:
-            player_->SetMessage("Playing");
-            if (remaining_seconds_ > 0) {
-                countdown_timer_->start();
-            }
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PAUSED:
-            player_->SetMessage("Paused");
-            countdown_timer_->stop();
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_IDLE:
-            player_->SetMessage("Idle");
-            countdown_timer_->stop();
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_ERROR:
-            player_->SetMessage("Error");
-            countdown_timer_->stop();
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_EMPTY:
-        default:
-            player_->SetMessage("No song selected");
-            countdown_timer_->stop();
-            remaining_seconds_ = 0;
-            UpdateRemainingDisplay();
-            break;
-        }
+        ApplySongInfo(msg->responseSongMetadata());
         break;
     }
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_ENGINE_STATE_CHANGE:
         switch (msg->engineStateChange().state()) {
         case nw::remote::EngineStateGadget::EngineState::ENGINE_STATE_PLAYING:
+            last_state_ = SongState::Playing;
             player_->SetMessage("Playing");
+            UpdateRemainingDisplay();
             // The reply to this restarts the countdown with a fresh position.
             msgOut_->Send(nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_REQUEST_SONG_INFO);
             // Natural song-advance is now handled by the server pushing
             // MSG_TYPE_PLAYLIST_ADVANCED - no request needed here.
             break;
         case nw::remote::EngineStateGadget::EngineState::ENGINE_STATE_PAUSED:
+            last_state_ = SongState::Paused;
             player_->SetMessage("Paused");
             countdown_timer_->stop();
+            UpdateRemainingDisplay();
             break;
         default:
+            last_state_ = SongState::Stopped;
             player_->SetMessage("Stopped");
             countdown_timer_->stop();
+            UpdateRemainingDisplay();
             break;
         }
         break;
@@ -291,6 +316,8 @@ void Controller::IncomingMsgReceived()
         if (msg->responseConnect().accepted()) {
             qInfo() << "Handshake accepted, server protocol version" << msg->version();
             auth_enabled_ = msg->responseConnect().authEnabled();
+            volume_control_enabled_ = msg->responseConnect().volumeControlEnabled();
+            player_->SetVolumeControlEnabled(volume_control_enabled_);
             if (statusWindow_) {
                 statusWindow_->close();
             }
@@ -311,42 +338,8 @@ void Controller::IncomingMsgReceived()
         }
         break;
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_RESPONSE_INITIAL_INFO: {
-        const nw::remote::ResponseSongMetadata response = msg->responseInitialInfo().songInfo();
-
-        const quint32 length_seconds = response.lengthSeconds();
-        const quint32 position_seconds = response.positionSeconds();
-        remaining_seconds_ = (length_seconds > position_seconds)
-                                 ? static_cast<int>(length_seconds - position_seconds)
-                                 : 0;
-        UpdateRemainingDisplay();
-
-        switch (response.playerState()) {
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PLAYING:
-            player_->SetMessage("Playing");
-            if (remaining_seconds_ > 0) {
-                countdown_timer_->start();
-            }
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_PAUSED:
-            player_->SetMessage("Paused");
-            countdown_timer_->stop();
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_IDLE:
-            player_->SetMessage("Idle");
-            countdown_timer_->stop();
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_ERROR:
-            player_->SetMessage("Error");
-            countdown_timer_->stop();
-            break;
-        case nw::remote::PlayerStateGadget::PlayerState::PLAYER_STATUS_EMPTY:
-        default:
-            player_->SetMessage("No song selected");
-            countdown_timer_->stop();
-            remaining_seconds_ = 0;
-            UpdateRemainingDisplay();
-            break;
-        }
+        ApplySongInfo(msg->responseInitialInfo().songInfo());
+        player_->SetVolume(msg->responseInitialInfo().volume());
 
         const nw::remote::ResponsePlaylists playlists_response = msg->responseInitialInfo().playlists();
         playlist_names_.clear();
@@ -550,6 +543,17 @@ void Controller::IncomingMsgReceived()
         }
         break;
     }
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_VOLUME_CONTROL_STATUS_CHANGED:
+        // Show or hide the slider immediately; no reconnect needed.
+        volume_control_enabled_ = msg->volumeControlStatusChanged().volumeControlEnabled();
+        player_->SetVolumeControlEnabled(volume_control_enabled_);
+        break;
+    case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_VOLUME_CHANGED:
+        // Sent on every volume change, whoever made it (including us), and
+        // whether or not volume control is enabled. Player ignores it while
+        // the handle is held and briefly after release.
+        player_->SetVolume(msg->volumeChanged().volume());
+        break;
     case nw::remote::MsgTypeGadget::MsgType::MSG_TYPE_AUTH_STATUS_CHANGED: {
         const nw::remote::AuthStatusChanged changed = msg->authStatusChanged();
         auth_enabled_ = changed.authEnabled();
@@ -643,6 +647,45 @@ void Controller::SocketDisconnected()
     if (!expecting_disconnect_) {
         ShowMessage("Connection to server lost");
     }
+}
+
+// The user released the seek slider at a new position. Player has already
+// filtered out a release that did not move the handle.
+void Controller::SeekRequested(quint32 position_seconds)
+{
+    if (!player_) return;
+    if (length_seconds_ <= 0) return;
+    if (last_state_ != SongState::Playing && last_state_ != SongState::Paused) return;
+
+    // The server silently ignores anything outside 0..length-1.
+    const quint32 last_valid = static_cast<quint32>(length_seconds_) - 1;
+    const quint32 position = qMin(position_seconds, last_valid);
+    qInfo() << "Seek:" << position << "of" << length_seconds_ << "state" << static_cast<int>(last_state_);
+
+    remaining_seconds_ = length_seconds_ - static_cast<int>(position);
+    msgOut_->RequestSeek(position);
+
+    if (last_state_ == SongState::Paused) {
+        // A seek while paused should resume playback from the new position.
+        msgOut_->RequestPlay();
+        // Optimistic: avoids sending a second PLAY if another seek follows
+        // before the server's state broadcast arrives. The next broadcast or
+        // song-info reply corrects it if the play did not happen.
+        last_state_ = SongState::Playing;
+        player_->SetMessage("Playing");
+        if (remaining_seconds_ > 0) {
+            countdown_timer_->start();
+        }
+    }
+
+    UpdateRemainingDisplay();
+}
+
+// The user moved the volume slider (already throttled by Player).
+void Controller::VolumeRequested(quint32 volume)
+{
+    if (!volume_control_enabled_) return;   // never send while the server has it disabled
+    msgOut_->RequestSetVolume(qMin(volume, 100u));
 }
 
 void Controller::PlaylistTabSelected(int index)
